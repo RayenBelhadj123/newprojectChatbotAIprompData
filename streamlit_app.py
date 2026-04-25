@@ -381,7 +381,7 @@ with col6:
     </div>
     """, unsafe_allow_html=True)
 
-tabs = st.tabs(['1) Goal & Interpretation','2) Data Quality','3) Time Series','4) Correlations & Scatter','5) Charts','6) Trump vs Biden','7) ML','8) Forecast','9) Export','10) Chatbot','11) OLAP Cube'])
+tabs = st.tabs(['1) Goal & Interpretation','2) Data Quality','3) Time Series','4) Correlations & Scatter','5) Charts','6) Trump vs Biden','7) ML','8) Forecast','9) Export','10) Chatbot','11) Comparative Tables','12) OLAP Cube'])
 
 with tabs[0]:
     st.subheader('Goal & Target')
@@ -519,6 +519,10 @@ with tabs[6]:
         c1.metric('MAE', f'{mae:.3f}')
         c2.metric('RMSE', f'{rmse:.3f}')
         c3.metric('R2', f'{r2:.3f}')
+        # Store results for comparison
+        if 'ml_results' not in st.session_state:
+            st.session_state.ml_results = []
+        st.session_state.ml_results.append({'Model': model_choice, 'MAE': mae, 'RMSE': rmse, 'R2': r2, 'Task': 'Regression'})
         out = pd.DataFrame({'actual': y_test.values, 'pred': pred})
         st.plotly_chart(px.line(out, y=['actual','pred']).update_layout(height=420), width='stretch')
         st.subheader('Cross-Validation Evaluation')
@@ -568,6 +572,10 @@ with tabs[6]:
             c5.metric('AUC', f'{auc:.3f}')
         else:
             c5.metric('AUC', 'N/A')
+        # Store results for comparison
+        if 'ml_results' not in st.session_state:
+            st.session_state.ml_results = []
+        st.session_state.ml_results.append({'Model': model_choice, 'Accuracy': acc, 'Precision': prec, 'Recall': rec, 'F1': f1, 'AUC': auc if auc else None, 'Task': 'Classification'})
         st.subheader('Classification Report')
         report = classification_report(y_test_binned, pred, output_dict=True)
         st.dataframe(pd.DataFrame(report).transpose())
@@ -687,20 +695,77 @@ with tabs[9]:
                 st.error(f'Error: {e}')
 
 with tabs[10]:
-    st.subheader('OLAP Cube - Pivot Analysis')
-    st.write('Perform multidimensional analysis with pivot tables.')
+    st.subheader('Comparative Tables')
+    st.write('Compare key metrics across administrations and models.')
+    
+    # Administration comparison table
+    st.markdown('### Administration Comparison')
+    num_cols = df.select_dtypes(include=['number']).columns.tolist()
+    if num_cols and 'administration' in df.columns:
+        cols = st.multiselect('Select metrics to compare', num_cols, default=num_cols[:min(5, len(num_cols))], key='comp_metrics')
+        if cols:
+            comp_df = df.groupby('administration')[cols].agg(['mean', 'median', 'std', 'min', 'max']).round(3)
+            st.dataframe(comp_df, width='stretch')
+            
+            # Percentage change table
+            if {'Trump (2017-2020)', 'Biden (2021-2024)'} <= set(df['administration'].unique()):
+                trump_mean = df[df['administration'] == 'Trump (2017-2020)'][cols].mean()
+                biden_mean = df[df['administration'] == 'Biden (2021-2024)'][cols].mean()
+                pct_change = ((biden_mean - trump_mean) / trump_mean * 100).round(2)
+                pct_df = pd.DataFrame({'Trump Mean': trump_mean, 'Biden Mean': biden_mean, '% Change': pct_change})
+                st.markdown('### Percentage Change (Biden vs Trump)')
+                st.dataframe(pct_df, width='stretch')
+    
+    # Model comparison table (if ML was run)
+    st.markdown('### Model Performance Comparison')
+    if 'ml_results' not in st.session_state:
+        st.session_state.ml_results = []
+    
+    if st.session_state.ml_results:
+        results_df = pd.DataFrame(st.session_state.ml_results)
+        st.dataframe(results_df, width='stretch')
+        if not results_df.empty:
+            # Best model highlight
+            best_r2 = results_df.loc[results_df['R2'].idxmax()] if 'R2' in results_df.columns else None
+            if best_r2 is not None:
+                st.success(f"Best Model: {best_r2['Model']} with R² = {best_r2['R2']:.3f}")
+    else:
+        st.info('Run ML models in the ML tab to see comparisons here.')
+
+with tabs[11]:
+    st.subheader('OLAP Cube - Multidimensional Analysis')
+    st.write('Perform pivot table analysis with visualization.')
     num_cols = df.select_dtypes(include=['number']).columns.tolist()
     cat_cols = df.select_dtypes(include=['object', 'category']).columns.tolist() + ['administration']
-    index = st.multiselect('Rows (index)', cat_cols, default=[], key='olap_index')
-    columns = st.multiselect('Columns', cat_cols, default=[], key='olap_columns')
-    values = st.multiselect('Values (aggregate)', num_cols, default=num_cols[:1] if num_cols else [], key='olap_values')
+    index = st.multiselect('Rows (dimensions)', cat_cols, default=['administration'], key='olap_index')
+    columns = st.multiselect('Columns (dimensions)', cat_cols, default=[], key='olap_columns')
+    values = st.multiselect('Values (measures)', num_cols, default=num_cols[:1] if num_cols else [], key='olap_values')
     aggfunc = st.selectbox('Aggregation function', ['mean', 'sum', 'count', 'std', 'min', 'max'], key='olap_agg')
     if values and index:
         try:
             pivot = pd.pivot_table(df, values=values, index=index, columns=columns, aggfunc=aggfunc, fill_value=0, dropna=False)
             st.dataframe(pivot, width='stretch')
-            st.download_button('Download Pivot CSV', data=pivot.reset_index().to_csv(index=False).encode('utf-8'), file_name='pivot_analysis.csv', mime='text/csv', key='download_pivot')
+            
+            # Visualization
+            if len(values) == 1 and len(index) <= 2 and len(columns) <= 1:
+                st.markdown('### Pivot Visualization')
+                if len(index) == 1 and not columns:
+                    # Simple bar chart
+                    fig = px.bar(pivot.reset_index(), x=index[0], y=values[0], title=f'{aggfunc.title()} of {values[0]} by {index[0]}')
+                    st.plotly_chart(fig, width='stretch')
+                elif len(index) == 2 and not columns:
+                    # Heatmap
+                    pivot_flat = pivot.reset_index().melt(id_vars=index, var_name='Measure', value_name='Value')
+                    fig = px.density_heatmap(pivot_flat, x=index[0], y=index[1], z='Value', title=f'Heatmap of {aggfunc.title()} {values[0]}')
+                    st.plotly_chart(fig, width='stretch')
+                elif len(columns) == 1 and len(index) == 1:
+                    # Grouped bar
+                    pivot_flat = pivot.reset_index().melt(id_vars=index, var_name=columns[0], value_name='Value')
+                    fig = px.bar(pivot_flat, x=index[0], y='Value', color=columns[0], barmode='group', title=f'{aggfunc.title()} of {values[0]} by {index[0]} and {columns[0]}')
+                    st.plotly_chart(fig, width='stretch')
+            
+            st.download_button('Download Pivot CSV', data=pivot.reset_index().to_csv(index=False).encode('utf-8'), file_name='olap_pivot.csv', mime='text/csv', key='download_pivot')
         except Exception as e:
             st.error(f'Error creating pivot: {e}')
     else:
-        st.info('Select at least one row and one value to create the pivot table.')
+        st.info('Select at least one row dimension and one value measure to create the OLAP cube.')
