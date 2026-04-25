@@ -691,7 +691,7 @@ with tabs[10]:
     st.write('Perform multidimensional analysis with pivot tables.')
     num_cols = df.select_dtypes(include=['number']).columns.tolist()
     cat_cols = df.select_dtypes(include=['object', 'category']).columns.tolist() + ['administration']
-    index = st.multiselect('Rows (index)', cat_cols, default=['administration'], key='olap_index')
+    index = st.multiselect('Rows (index)', cat_cols, default=[], key='olap_index')
     columns = st.multiselect('Columns', cat_cols, default=[], key='olap_columns')
     values = st.multiselect('Values (aggregate)', num_cols, default=num_cols[:1] if num_cols else [], key='olap_values')
     aggfunc = st.selectbox('Aggregation function', ['mean', 'sum', 'count', 'std', 'min', 'max'], key='olap_agg')
@@ -699,7 +699,7 @@ with tabs[10]:
         try:
             pivot = pd.pivot_table(df, values=values, index=index, columns=columns, aggfunc=aggfunc, fill_value=0, dropna=False)
             st.dataframe(pivot, width='stretch')
-            st.download_button('Download Pivot CSV', data=pivot.to_csv().encode('utf-8'), file_name='pivot_analysis.csv', mime='text/csv', key='download_pivot')
+            st.download_button('Download Pivot CSV', data=pivot.reset_index().to_csv(index=False).encode('utf-8'), file_name='pivot_analysis.csv', mime='text/csv', key='download_pivot')
         except Exception as e:
             st.error(f'Error creating pivot: {e}')
     else:
