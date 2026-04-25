@@ -1,0 +1,18 @@
+site_name: "US Housing Kaggle Advanced Streamlit Project"
+
+theme:
+  name: material
+  features:
+    - content.code.copy
+    - navigation.expand
+    - navigation.path
+
+nav:
+  - Introduction: index.md
+
+markdown_extensions:
+  - attr_list
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+

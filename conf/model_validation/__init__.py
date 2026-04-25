@@ -1,0 +1,2 @@
+"""Model validation configuration."""
+

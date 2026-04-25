@@ -1,0 +1,11 @@
+project:
+  name: "US Housing Kaggle Advanced Streamlit Project"
+  description: "Streamlit dashboard for US housing, macro indicators, ML, forecasts, and OLAP views."
+
+data:
+  raw_dataset: "data/01_raw/us_home_price_analysis_2004_2024.csv"
+  reporting_dir: "data/08_reporting"
+
+app:
+  entrypoint: "streamlit_app.py"
+

@@ -1,0 +1,42 @@
+[project]
+name = "us-housing-kaggle-advanced-streamlit-project"
+version = "0.1.0"
+description = "Advanced Streamlit dashboard for US housing and macroeconomic analysis."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "streamlit",
+  "pandas",
+  "numpy",
+  "plotly",
+  "scikit-learn",
+  "statsmodels",
+  "openai",
+]
+
+[dependency-groups]
+dev = [
+  "mypy",
+  "pre-commit",
+  "pytest",
+  "pytest-cov",
+  "ruff",
+]
+docs = [
+  "mkdocs",
+  "mkdocs-material",
+  "pymdown-extensions",
+]
+
+[tool.uv]
+package = false
+default-groups = ["dev", "docs"]
+
+[tool.pytest.ini_options]
+addopts = "-p no:cacheprovider"
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["src"]
+omit = ["**/__init__.py"]
