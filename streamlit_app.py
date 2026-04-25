@@ -14,177 +14,326 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 from sklearn.model_selection import cross_val_score
 import openai
 
+st.set_page_config(page_title='US Housing x Macro Dashboard (Advanced)', layout='wide')
+BASE_DIR = Path(__file__).resolve().parent
+DEFAULT_CSV = BASE_DIR / 'data' / 'us_home_price_analysis_2004_2024.csv'
+
+st.sidebar.title('🏠 US Housing x Macro')
+st.sidebar.caption('📈 Advanced housing analytics with EDA, ML, Forecast & OLAP')
 st.sidebar.markdown('---')
-dark_mode = st.sidebar.checkbox('Dark Mode', value=False, key='dark_mode_css')
+st.sidebar.subheader('🔧 Controls')
+uploaded = st.sidebar.file_uploader('Upload Kaggle CSV', type=['csv'])
+use_default = st.sidebar.checkbox('Use default CSV', value=(uploaded is None))
+dark_mode = st.sidebar.checkbox('🌙 Dark Mode', value=False, key='dark_mode_toggle')
+show_raw = st.sidebar.checkbox('🧾 Show raw data preview', value=False)
 st.sidebar.markdown('---')
+st.sidebar.subheader('⚡ Quick Notes')
+st.sidebar.markdown(
+    '- 📌 Use the tabs to explore insights\n'
+    '- 🧠 Run ML in the ML tab for performance comparison\n'
+    '- 🧩 Compare administrations and build OLAP pivots\n'
+)
+st.sidebar.markdown('---')
+st.sidebar.subheader('📂 Dataset')
+st.sidebar.code(str(DEFAULT_CSV), language='text')
 
 # Advanced CSS with dark mode support
 if dark_mode:
     css = """
     <style>
-        .main {
-            background-color: #1e1e1e;
-            color: #ffffff;
-            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        .block-container {
+            padding-top: 1.2rem;
+            padding-bottom: 1rem;
+            padding-left: 1rem;
+            padding-right: 1rem;
         }
         .sidebar .sidebar-content {
-            background-color: #2d2d2d;
-            border-right: 2px solid #404040;
-            color: #ffffff;
+            background-color: #1f2430;
+            border-right: 1px solid #293240;
+            color: #e9eef5;
+            padding: 1rem;
+        }
+        .sidebar .stMarkdown p, .sidebar .stMarkdown li {
+            color: #dfe4ee;
+            margin: 0.2rem 0;
         }
         h1, h2, h3, h4, h5, h6 {
-            color: #61dafb;
-            font-weight: 600;
+            color: #f1f4fb;
+            font-weight: 700;
         }
         .stTabs [data-baseweb="tab-list"] {
             gap: 4px;
-            background-color: #2d2d2d;
+            background-color: #1f2738;
             padding: 10px;
-            border-radius: 8px;
+            border-radius: 14px;
         }
         .stTabs [data-baseweb="tab"] {
-            height: 50px;
+            height: 48px;
             white-space: pre-wrap;
-            background-color: #404040;
-            border-radius: 6px;
-            border: 1px solid #555555;
-            color: #cccccc;
-            font-weight: 500;
-            transition: all 0.3s ease;
+            background-color: #242c3f;
+            border-radius: 12px;
+            border: 1px solid #2d3748;
+            color: #b8c1d1;
+            font-weight: 600;
+            transition: all 0.25s ease;
         }
         .stTabs [aria-selected="true"] {
-            background-color: #61dafb;
-            color: #1e1e1e;
-            border-color: #61dafb;
-            box-shadow: 0 2px 4px rgba(97,218,251,0.2);
+            background-color: #5b8dff;
+            color: #ffffff;
+            border-color: #5b8dff;
+            box-shadow: 0 8px 24px rgba(91,141,255,0.18);
         }
         .metric-card {
-            background-color: #2d2d2d;
-            border: 1px solid #404040;
-            border-radius: 8px;
-            padding: 20px;
+            background-color: #232b3b;
+            border: 1px solid #2d3545;
+            border-radius: 18px;
+            padding: 18px;
             text-align: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-            margin: 10px 0;
+            box-shadow: 0 16px 40px rgba(0,0,0,0.14);
+            margin: 8px 0;
+            min-height: 110px;
         }
         .metric-value {
-            font-size: 2em;
-            font-weight: bold;
-            color: #61dafb;
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #ffffff;
         }
         .metric-label {
-            font-size: 0.9em;
-            color: #cccccc;
+            font-size: 0.85rem;
+            color: #a1accf;
             text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-top: 0.5rem;
+            display: block;
+        }
+        .metric-icon {
+            font-size: 1.1rem;
+            margin-right: 0.3rem;
+            vertical-align: middle;
+        }
+        .header-banner {
+            width: 100%;
+            border-radius: 22px;
+            padding: 26px;
+            margin-bottom: 18px;
+            background: linear-gradient(135deg, #1d2435 0%, #2c3a5b 100%);
+            box-shadow: 0 24px 60px rgba(0,0,0,0.18);
+            color: #f8fafc;
+        }
+        .header-banner .banner-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin: 0 0 8px 0;
+        }
+        .header-banner .banner-subtitle {
+            font-size: 0.96rem;
+            color: #c8d1e9;
+            line-height: 1.6;
+            margin: 0;
+        }
+        .banner-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 18px;
+        }
+        .banner-chip {
+            padding: 12px 18px;
+            border-radius: 16px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.12);
+            color: #eef4ff;
+            font-size: 0.94rem;
+        }
+        .quick-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+        .action-card {
+            flex: 1 1 180px;
+            min-width: 180px;
+            background: #273046;
+            border: 1px solid #32405c;
+            border-radius: 18px;
+            padding: 16px;
+            color: #f4f7ff;
+            font-weight: 700;
+            box-shadow: 0 14px 32px rgba(0,0,0,0.12);
+        }
+        .action-card span {
+            display: block;
+            margin-top: 8px;
+            font-size: 0.92rem;
+            color: #a8b3d7;
+            font-weight: 500;
         }
         .stButton>button {
-            background-color: #61dafb;
-            color: #1e1e1e;
-            border: none;
-            border-radius: 6px;
-            padding: 10px 20px;
-            font-weight: 500;
-            transition: background-color 0.3s ease;
-        }
-        .stButton>button:hover {
-            background-color: #21b4d6;
-        }
-        .dataframe {
-            border-radius: 8px;
-            overflow: hidden;
-            background-color: #2d2d2d;
-            color: #ffffff;
+            border-radius: 12px;
+            padding: 10px 18px;
+            font-weight: 700;
+            min-height: 44px;
         }
         .dataframe th {
-            background-color: #404040;
-            color: #ffffff;
+            background-color: #2f364f !important;
+            color: #f4f7ff !important;
         }
         .dataframe td {
-            background-color: #2d2d2d;
-            color: #cccccc;
+            background-color: #21283b !important;
+            color: #dfe4ee !important;
         }
     </style>
     """
 else:
     css = """
     <style>
-        .main {
-            background-color: #f8f9fa;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        .block-container {
+            padding-top: 1.2rem;
+            padding-bottom: 1rem;
+            padding-left: 1rem;
+            padding-right: 1rem;
         }
         .sidebar .sidebar-content {
             background-color: #ffffff;
-            border-right: 2px solid #e9ecef;
+            border-right: 1px solid #e8eef6;
+            color: #2b3b55;
+            padding: 1rem;
         }
-        h1, h2, h3, h4, h5, h6 {
-            color: #2c3e50;
-            font-weight: 600;
+        .sidebar .stMarkdown p, .sidebar .stMarkdown li {
+            color: #4d607a;
+            margin: 0.2rem 0;
+        }
+        h1,h2,h3,h4,h5,h6 {
+            color: #1f2f43;
+            font-weight: 700;
         }
         .stTabs [data-baseweb="tab-list"] {
             gap: 4px;
-            background-color: #f1f3f4;
+            background-color: #f1f4f8;
             padding: 10px;
-            border-radius: 8px;
+            border-radius: 14px;
         }
         .stTabs [data-baseweb="tab"] {
-            height: 50px;
+            height: 48px;
             white-space: pre-wrap;
             background-color: #ffffff;
-            border-radius: 6px;
-            border: 1px solid #dee2e6;
-            color: #495057;
-            font-weight: 500;
-            transition: all 0.3s ease;
+            border-radius: 12px;
+            border: 1px solid #d8e2ee;
+            color: #3f506b;
+            font-weight: 600;
+            transition: all 0.25s ease;
         }
         .stTabs [aria-selected="true"] {
             background-color: #007bff;
-            color: white;
+            color: #ffffff;
             border-color: #007bff;
-            box-shadow: 0 2px 4px rgba(0,123,255,0.2);
+            box-shadow: 0 8px 24px rgba(0,123,255,0.18);
         }
         .metric-card {
             background-color: #ffffff;
-            border: 1px solid #e9ecef;
-            border-radius: 8px;
-            padding: 20px;
+            border: 1px solid #e8eff7;
+            border-radius: 18px;
+            padding: 18px;
             text-align: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin: 10px 0;
+            box-shadow: 0 12px 28px rgba(15,41,89,0.06);
+            margin: 8px 0;
+            min-height: 110px;
         }
         .metric-value {
-            font-size: 2em;
-            font-weight: bold;
-            color: #28a745;
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #1f3d7a;
         }
         .metric-label {
-            font-size: 0.9em;
-            color: #6c757d;
+            font-size: 0.85rem;
+            color: #5f6d8d;
             text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-top: 0.5rem;
+            display: block;
+        }
+        .metric-icon {
+            font-size: 1.1rem;
+            margin-right: 0.3rem;
+            vertical-align: middle;
+        }
+        .header-banner {
+            width: 100%;
+            border-radius: 22px;
+            padding: 26px;
+            margin-bottom: 18px;
+            background: linear-gradient(135deg, #f7fbff 0%, #e9f2ff 100%);
+            box-shadow: 0 16px 40px rgba(79,97,167,0.08);
+            color: #152d5f;
+        }
+        .header-banner .banner-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin: 0 0 8px 0;
+        }
+        .header-banner .banner-subtitle {
+            font-size: 0.96rem;
+            color: #556f96;
+            line-height: 1.6;
+            margin: 0;
+        }
+        .banner-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 18px;
+        }
+        .banner-chip {
+            padding: 12px 18px;
+            border-radius: 16px;
+            background: #ffffff;
+            border: 1px solid #d7e4f8;
+            color: #273c67;
+            font-size: 0.94rem;
+        }
+        .quick-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+        .action-card {
+            flex: 1 1 180px;
+            min-width: 180px;
+            background: #ffffff;
+            border: 1px solid #e3ebf8;
+            border-radius: 18px;
+            padding: 16px;
+            color: #17305b;
+            font-weight: 700;
+            box-shadow: 0 12px 28px rgba(118,140,181,0.08);
+        }
+        .action-card span {
+            display: block;
+            margin-top: 8px;
+            font-size: 0.92rem;
+            color: #5b6f91;
+            font-weight: 500;
         }
         .stButton>button {
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            padding: 10px 20px;
-            font-weight: 500;
-            transition: background-color 0.3s ease;
+            border-radius: 12px;
+            padding: 10px 18px;
+            font-weight: 700;
+            min-height: 44px;
         }
-        .stButton>button:hover {
-            background-color: #0056b3;
+        .dataframe th {
+            background-color: #f1f5fb !important;
+            color: #152d5f !important;
         }
-        .dataframe {
-            border-radius: 8px;
-            overflow: hidden;
+        .dataframe td {
+            background-color: #ffffff !important;
+            color: #2b3d61 !important;
         }
     </style>
     """
 
 st.markdown(css, unsafe_allow_html=True)
-
-st.set_page_config(page_title='US Housing x Macro Dashboard (Advanced)', layout='wide')
-BASE_DIR = Path(__file__).resolve().parent
-DEFAULT_CSV = BASE_DIR / 'data' / 'us_home_price_analysis_2004_2024.csv'
 
 def find_date_col(df: pd.DataFrame):
     cols = [c.lower() for c in df.columns]
@@ -267,8 +416,6 @@ def radar_compare(df: pd.DataFrame, metrics_cols):
     fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0,1])), height=520, title='Radar (0-1 normalized mean profile)')
     return fig
 
-st.sidebar.title('US Housing x Macro (Advanced)')
-st.sidebar.caption('Kaggle CSV + EDA + Admin comparison + ML + Forecast')
 st.sidebar.markdown('---')
 st.sidebar.subheader('AI Code Assistant (Codex)')
 api_key = st.sidebar.text_input('OpenAI API Key', type='password')
@@ -294,8 +441,6 @@ if api_key:
             st.sidebar.error(f'Error: {e}')
 st.sidebar.markdown('**Where to put your data**:')
 st.sidebar.code(str(DEFAULT_CSV), language='text')
-uploaded = st.sidebar.file_uploader('Upload Kaggle CSV', type=['csv'])
-use_default = st.sidebar.checkbox('Use default CSV from /data', value=(uploaded is None))
 
 if uploaded is not None:
     df = pd.read_csv(uploaded)
@@ -316,10 +461,6 @@ if date_col and df[date_col].notna().any():
 else:
     df['administration'] = 'Unknown'
 
-st.sidebar.markdown('---')
-dark_mode = st.sidebar.checkbox('Dark Mode', value=False, key='dark_mode_toggle')
-st.sidebar.markdown('---')
-show_raw = st.sidebar.checkbox('Show raw data preview', value=False)
 if date_col and df[date_col].notna().any():
     dmin, dmax = df[date_col].min(), df[date_col].max()
     sel = st.sidebar.slider('Date range', min_value=dmin.to_pydatetime(), max_value=dmax.to_pydatetime(), value=(dmin.to_pydatetime(), dmax.to_pydatetime()))
@@ -328,12 +469,33 @@ if show_raw:
     st.subheader('Raw preview')
     st.dataframe(df.head(50), width='stretch')
 
-st.title('US Housing & Economic Indicators — Advanced Dashboard')
-st.caption(f'Source: {source_name} • Goal: explain + predict housing dynamics using macro indicators and compare patterns under Trump vs Biden.')
+st.markdown(f"""
+<div class="header-banner">
+  <div>
+    <div class="banner-title">US Housing & Economic Indicators</div>
+    <div class="banner-subtitle">A compact advanced dashboard built for analysis, comparison, forecasting and OLAP exploration.</div>
+    <div class="banner-row">
+      <div class="banner-chip">📍 Source: {source_name}</div>
+      <div class="banner-chip">🏷️ Goal: Compare Trump vs Biden performance</div>
+    </div>
+  </div>
+  <div class="banner-row">
+      <div class="banner-chip">📅 {date_col if date_col else 'No date column detected'}</div>
+      <div class="banner-chip">📊 {len(df):,} rows</div>
+      <div class="banner-chip">🧮 {df.shape[1]:,} features</div>
+  </div>
+</div>
+<div class="quick-actions">
+  <div class="action-card">📈 Overview<span>Explore key charts and trends</span></div>
+  <div class="action-card">🧠 ML & Forecast<span>Build models and forecast future values</span></div>
+  <div class="action-card">📋 Comparison<span>Compare administrations and model scores</span></div>
+  <div class="action-card">🧮 OLAP Cube<span>Aggregate data with pivot tables</span></div>
+</div>
+""", unsafe_allow_html=True)
 
 # Scroll to top button with JS
 st.components.v1.html("""
-<button onclick="window.scrollTo({top: 0, behavior: 'smooth'});" style="position: fixed; bottom: 20px; right: 20px; background-color: #007bff; color: white; border: none; border-radius: 50%; width: 50px; height: 50px; font-size: 20px; cursor: pointer; z-index: 1000;">↑</button>
+<button onclick="window.scrollTo({top: 0, behavior: 'smooth'});" style="position: fixed; bottom: 20px; right: 20px; background-color: #0d6efd; color: white; border: none; border-radius: 50%; width: 50px; height: 50px; font-size: 20px; cursor: pointer; z-index: 1000;">↑</button>
 """)
 
 # Custom metric cards
@@ -342,42 +504,42 @@ with col1:
     st.markdown(f"""
     <div class="metric-card">
         <div class="metric-value">{len(df):,}</div>
-        <div class="metric-label">Rows</div>
+        <div class="metric-label"><span class="metric-icon">🧮</span>Rows</div>
     </div>
     """, unsafe_allow_html=True)
 with col2:
     st.markdown(f"""
     <div class="metric-card">
         <div class="metric-value">{df.shape[1]:,}</div>
-        <div class="metric-label">Columns</div>
+        <div class="metric-label"><span class="metric-icon">📦</span>Columns</div>
     </div>
     """, unsafe_allow_html=True)
 with col3:
     st.markdown(f"""
     <div class="metric-card">
         <div class="metric-value">{int(df.isna().sum().sum()):,}</div>
-        <div class="metric-label">Missing Cells</div>
+        <div class="metric-label"><span class="metric-icon">⚠️</span>Missing Cells</div>
     </div>
     """, unsafe_allow_html=True)
 with col4:
     st.markdown(f"""
     <div class="metric-card">
         <div class="metric-value">{int(df.duplicated().sum()):,}</div>
-        <div class="metric-label">Duplicate Rows</div>
+        <div class="metric-label"><span class="metric-icon">🧷</span>Duplicate Rows</div>
     </div>
     """, unsafe_allow_html=True)
 with col5:
     st.markdown(f"""
     <div class="metric-card">
         <div class="metric-value">{df['administration'].nunique():,}</div>
-        <div class="metric-label">Periods</div>
+        <div class="metric-label"><span class="metric-icon">🏛️</span>Periods</div>
     </div>
     """, unsafe_allow_html=True)
 with col6:
     st.markdown(f"""
     <div class="metric-card">
         <div class="metric-value">{date_col if date_col else '—'}</div>
-        <div class="metric-label">Date Col</div>
+        <div class="metric-label"><span class="metric-icon">📅</span>Date Col</div>
     </div>
     """, unsafe_allow_html=True)
 
