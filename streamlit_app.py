@@ -64,51 +64,150 @@ DEFAULT_CSV = resolve_default_dataset()
 
 
 def apply_theme(dark_mode: bool) -> None:
-    bg = "#0f172a" if dark_mode else "#f7f9fc"
-    panel = "#182235" if dark_mode else "#ffffff"
-    panel_2 = "#111827" if dark_mode else "#eef4fb"
-    text = "#e5edf9" if dark_mode else "#1e293b"
-    muted = "#9fb0c7" if dark_mode else "#64748b"
-    border = "#26364d" if dark_mode else "#dbe5f0"
+    bg = "#08111f" if dark_mode else "#eef3f8"
+    panel = "#101b2d" if dark_mode else "#fbfdff"
+    panel_2 = "#16243a" if dark_mode else "#e6edf5"
+    panel_3 = "#0b1424" if dark_mode else "#d9e4ef"
+    text = "#edf4ff" if dark_mode else "#142033"
+    muted = "#9fb0c7" if dark_mode else "#536173"
+    border = "#283852" if dark_mode else "#c8d6e5"
+    accent = "#21b8a6" if dark_mode else "#087f8c"
+    accent_2 = "#f4b046" if dark_mode else "#c35f1d"
+    danger = "#fb7185" if dark_mode else "#dc2626"
+    shadow = "0 22px 70px rgba(0,0,0,0.34)" if dark_mode else "0 22px 60px rgba(24,43,72,0.13)"
 
     st.markdown(
         f"""
         <style>
+            :root {{
+                --app-bg: {bg};
+                --panel: {panel};
+                --panel-2: {panel_2};
+                --panel-3: {panel_3};
+                --text: {text};
+                --muted: {muted};
+                --border: {border};
+                --accent: {accent};
+                --accent-2: {accent_2};
+                --danger: {danger};
+                --shadow: {shadow};
+            }}
             .stApp {{
-                background: {bg};
-                color: {text};
+                background:
+                    linear-gradient(180deg, var(--panel-3) 0px, var(--app-bg) 260px, var(--app-bg) 100%);
+                color: var(--text);
+            }}
+            [data-testid="stHeader"] {{
+                background: transparent;
+                height: 0;
+            }}
+            [data-testid="stToolbar"] {{
+                display: none;
+            }}
+            #MainMenu, footer {{
+                visibility: hidden;
             }}
             .block-container {{
-                padding-top: 1rem;
-                padding-bottom: 2rem;
-                max-width: 1420px;
+                padding-top: 1.15rem;
+                padding-bottom: 2.4rem;
+                max-width: 1480px;
             }}
             h1, h2, h3, h4 {{
-                color: {text};
+                color: var(--text);
+                letter-spacing: 0;
+                font-weight: 760;
+            }}
+            h2 {{
+                padding-top: 0.25rem;
+            }}
+            h3 {{
+                border-left: 4px solid var(--accent);
+                padding-left: 0.7rem;
+                margin-top: 1.4rem;
+            }}
+            p, li, label, span {{
                 letter-spacing: 0;
             }}
             [data-testid="stSidebar"] {{
-                background: {panel};
-                border-right: 1px solid {border};
+                background: linear-gradient(180deg, var(--panel-3), var(--panel));
+                border-right: 1px solid var(--border);
+                box-shadow: var(--shadow);
             }}
             [data-testid="stSidebar"] * {{
-                color: {text};
+                color: var(--text);
+            }}
+            [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {{
+                color: var(--muted);
+            }}
+            [data-testid="stSidebar"] div[data-baseweb="select"] > div,
+            [data-testid="stSidebar"] input {{
+                background: var(--panel-2);
+                border-color: var(--border);
+            }}
+            .brand-lockup {{
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 10px 0 6px 0;
+                margin-bottom: 8px;
+            }}
+            .brand-mark {{
+                width: 44px;
+                height: 44px;
+                display: grid;
+                place-items: center;
+                border-radius: 12px;
+                background: var(--accent);
+                color: #ffffff;
+                font-weight: 900;
+                font-size: 1.25rem;
+                box-shadow: 0 14px 30px rgba(33,184,166,0.24);
+            }}
+            .brand-name {{
+                color: var(--text);
+                font-size: 1.06rem;
+                font-weight: 850;
+                line-height: 1.05;
+            }}
+            .brand-subtitle {{
+                color: var(--muted);
+                font-size: 0.74rem;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.08em;
+                margin-top: 4px;
             }}
             .hero {{
-                border: 1px solid {border};
-                border-radius: 8px;
-                padding: 24px;
-                background: {panel};
-                margin-bottom: 16px;
+                border: 1px solid var(--border);
+                border-radius: 16px;
+                padding: 30px;
+                background:
+                    linear-gradient(135deg, rgba(33,184,166,0.14), rgba(244,176,70,0.08)),
+                    var(--panel);
+                margin-bottom: 14px;
+                box-shadow: var(--shadow);
+                position: relative;
+                overflow: hidden;
+            }}
+            .hero::before {{
+                content: "";
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 4px;
+                background: var(--accent);
             }}
             .hero h1 {{
-                font-size: 2rem;
+                font-size: 2.22rem;
                 margin: 0 0 8px 0;
+                line-height: 1.12;
             }}
             .hero p {{
-                color: {muted};
+                color: var(--muted);
                 margin: 0;
                 line-height: 1.55;
+                max-width: 920px;
             }}
             .chip-row {{
                 display: flex;
@@ -117,55 +216,194 @@ def apply_theme(dark_mode: bool) -> None:
                 margin-top: 16px;
             }}
             .chip {{
-                border: 1px solid {border};
+                border: 1px solid var(--border);
                 border-radius: 999px;
-                padding: 7px 12px;
-                background: {panel_2};
-                color: {text};
+                padding: 7px 11px;
+                background: var(--panel-2);
+                color: var(--text);
                 font-size: 0.88rem;
+                font-weight: 620;
             }}
-            .metric-card {{
-                min-height: 104px;
-                border: 1px solid {border};
-                border-radius: 8px;
-                background: {panel};
-                padding: 16px;
+            .workflow-strip {{
+                display: grid;
+                grid-template-columns: repeat(6, minmax(120px, 1fr));
+                gap: 10px;
+                margin: 12px 0 18px 0;
             }}
-            .metric-card .label {{
-                color: {muted};
-                font-size: 0.78rem;
+            .workflow-step {{
+                border: 1px solid var(--border);
+                background: linear-gradient(180deg, var(--panel), var(--panel-2));
+                border-radius: 13px;
+                padding: 14px;
+                box-shadow: 0 14px 34px rgba(0,0,0,0.13);
+                min-height: 78px;
+            }}
+            .workflow-step .step-kicker {{
+                color: var(--accent);
+                font-size: 0.72rem;
+                font-weight: 800;
                 text-transform: uppercase;
                 letter-spacing: 0.08em;
             }}
+            .workflow-step .step-title {{
+                color: var(--text);
+                font-size: 0.92rem;
+                font-weight: 760;
+                margin-top: 3px;
+            }}
+            .metric-card {{
+                min-height: 108px;
+                border: 1px solid var(--border);
+                border-radius: 13px;
+                background: linear-gradient(180deg, var(--panel), var(--panel-2));
+                padding: 17px;
+                box-shadow: 0 16px 44px rgba(0,0,0,0.13);
+                border-top: 3px solid var(--accent);
+            }}
+            .metric-card .label {{
+                color: var(--muted);
+                font-size: 0.78rem;
+                text-transform: uppercase;
+                letter-spacing: 0.08em;
+                font-weight: 750;
+            }}
             .metric-card .value {{
-                color: {text};
+                color: var(--text);
                 font-size: 1.45rem;
                 font-weight: 750;
                 margin-top: 8px;
                 word-break: break-word;
             }}
             .section-note {{
-                color: {muted};
+                color: var(--muted);
                 margin-top: -6px;
             }}
             div[data-testid="stMetric"] {{
-                border: 1px solid {border};
-                border-radius: 8px;
-                padding: 12px;
-                background: {panel};
+                border: 1px solid var(--border);
+                border-radius: 13px;
+                padding: 13px;
+                background: linear-gradient(180deg, var(--panel), var(--panel-2));
+                box-shadow: 0 14px 34px rgba(0,0,0,0.12);
             }}
             .stTabs [data-baseweb="tab-list"] {{
                 gap: 6px;
-                border-bottom: 1px solid {border};
+                border: 1px solid var(--border);
+                border-radius: 14px;
+                padding: 8px;
+                background: linear-gradient(180deg, var(--panel), var(--panel-2));
+                box-shadow: 0 16px 44px rgba(0,0,0,0.16);
+                overflow-x: auto;
             }}
             .stTabs [data-baseweb="tab"] {{
-                border-radius: 8px 8px 0 0;
-                padding: 10px 14px;
+                border-radius: 9px;
+                padding: 10px 13px;
+                min-height: 42px;
+                color: var(--muted);
+                font-weight: 720;
+                border: 1px solid transparent;
             }}
             .stTabs [aria-selected="true"] {{
-                background: {panel};
-                border: 1px solid {border};
-                border-bottom: 1px solid {panel};
+                background: var(--panel-2);
+                border: 1px solid var(--border);
+                color: var(--text);
+                box-shadow: inset 0 -2px 0 var(--accent);
+            }}
+            div[data-testid="stDataFrame"],
+            div[data-testid="stTable"] {{
+                border: 1px solid var(--border);
+                border-radius: 10px;
+                overflow: hidden;
+                background: var(--panel);
+            }}
+            .stButton > button,
+            .stDownloadButton > button {{
+                border-radius: 9px;
+                border: 1px solid var(--accent);
+                background: var(--accent);
+                color: white;
+                font-weight: 750;
+                min-height: 40px;
+                box-shadow: 0 10px 26px rgba(8,127,140,0.16);
+            }}
+            .stButton > button:hover,
+            .stDownloadButton > button:hover {{
+                border-color: var(--accent-2);
+                background: var(--accent-2);
+                color: white;
+            }}
+            div[data-baseweb="select"] > div,
+            textarea,
+            input {{
+                border-radius: 9px !important;
+                border-color: var(--border) !important;
+            }}
+            [data-testid="stAlert"] {{
+                border-radius: 10px;
+                border: 1px solid var(--border);
+            }}
+            [data-testid="stExpander"] {{
+                border: 1px solid var(--border);
+                border-radius: 10px;
+                background: var(--panel);
+            }}
+            .learning-grid {{
+                display: grid;
+                grid-template-columns: repeat(3, minmax(180px, 1fr));
+                gap: 12px;
+                margin: 8px 0 18px 0;
+            }}
+            .learning-card {{
+                border: 1px solid var(--border);
+                border-radius: 13px;
+                padding: 15px;
+                background: linear-gradient(180deg, var(--panel), var(--panel-2));
+                box-shadow: 0 12px 34px rgba(0,0,0,0.12);
+            }}
+            .learning-card .learning-kicker {{
+                color: var(--accent-2);
+                font-size: 0.72rem;
+                font-weight: 850;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+                margin-bottom: 6px;
+            }}
+            .learning-card .learning-title {{
+                color: var(--text);
+                font-size: 1rem;
+                font-weight: 800;
+                margin-bottom: 6px;
+            }}
+            .learning-card .learning-text {{
+                color: var(--muted);
+                font-size: 0.88rem;
+                line-height: 1.45;
+            }}
+            .search-result {{
+                border: 1px solid var(--border);
+                border-radius: 11px;
+                padding: 10px 12px;
+                background: var(--panel-2);
+                margin: 7px 0;
+            }}
+            .search-result strong {{
+                color: var(--text);
+            }}
+            .search-result span {{
+                color: var(--muted);
+                display: block;
+                margin-top: 3px;
+                font-size: 0.82rem;
+            }}
+            @media (max-width: 900px) {{
+                .workflow-strip {{
+                    grid-template-columns: repeat(2, minmax(120px, 1fr));
+                }}
+                .learning-grid {{
+                    grid-template-columns: 1fr;
+                }}
+                .hero h1 {{
+                    font-size: 1.62rem;
+                }}
             }}
         </style>
         """,
@@ -302,6 +540,58 @@ def metric_card(label: str, value: str) -> None:
         """,
         unsafe_allow_html=True,
     )
+
+
+def learning_cards(cards: list[tuple[str, str, str]]) -> None:
+    for start in range(0, len(cards), 3):
+        cols = st.columns(min(3, len(cards) - start))
+        for col, (kicker, title, text) in zip(cols, cards[start : start + 3]):
+            with col:
+                with st.container(border=True):
+                    st.caption(kicker)
+                    st.markdown(f"**{title}**")
+                    st.write(text)
+
+
+def dashboard_search_items() -> list[dict[str, str]]:
+    return [
+        {"page": "Overview", "keywords": "trend correlation target summary drivers", "desc": "Start here for target movement and meaningful correlations."},
+        {"page": "Explore", "keywords": "histogram box plot violin scatter distribution outliers", "desc": "Use this for visual exploration and distributions."},
+        {"page": "Data Quality", "keywords": "missing duplicates quality profile clean", "desc": "Check whether the dataset is reliable."},
+        {"page": "ML Lab", "keywords": "machine learning regression classification model train supervised", "desc": "Run one supervised model or compare models."},
+        {"page": "Evaluation", "keywords": "accuracy precision recall f1 auc r2 rmse mae metrics explainability", "desc": "Compare models and explain why the best one wins."},
+        {"page": "Unsupervised Lab", "keywords": "kmeans dbscan pca isolation forest anomaly clusters", "desc": "Find groups, components, and unusual periods."},
+        {"page": "Reinforcement Lab", "keywords": "reinforcement q learning reward action state policy", "desc": "See an educational decision-policy example."},
+        {"page": "Forecast", "keywords": "forecast predict future horizon lag", "desc": "Predict future target values."},
+        {"page": "OLAP & Export", "keywords": "olap cube pivot 3d segment export csv", "desc": "Build pivots, segment insights, and 3D OLAP cube."},
+        {"page": "Scenario Simulator", "keywords": "scenario what if simulator impact change feature", "desc": "Test a what-if feature change."},
+        {"page": "Paper Review", "keywords": "paper research real life current market comparison", "desc": "Compare app results with outside research."},
+        {"page": "Production Readiness", "keywords": "validation drift model card governance production", "desc": "Big-company checks for trust and governance."},
+    ]
+
+
+def render_search_results(query: str) -> None:
+    query = query.strip().lower()
+    if not query:
+        return
+    matches = [
+        item
+        for item in dashboard_search_items()
+        if query in item["page"].lower() or any(word in item["keywords"] for word in query.split())
+    ][:5]
+    if not matches:
+        st.caption("No exact feature match. Try: model, OLAP, forecast, accuracy, drift, or scenario.")
+        return
+    for item in matches:
+        st.markdown(
+            f"""
+            <div class="search-result">
+                <strong>{item["page"]}</strong>
+                <span>{item["desc"]}</span>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
 
 def correlation_summary(cmat: pd.DataFrame, target: str | None) -> dict[str, object]:
@@ -711,6 +1001,309 @@ def evaluate_all_models(
     return pd.DataFrame(rows).sort_values("F1", ascending=False)
 
 
+def fit_best_model_for_task(
+    data: pd.DataFrame,
+    target: str,
+    features: list[str],
+    task_type: str,
+    use_scaling: bool,
+    scaler_name: str,
+    model_name: str,
+) -> tuple[Pipeline, pd.DataFrame, pd.Series]:
+    model_df = data[[target] + features].copy().dropna(subset=[target])
+    split = int(len(model_df) * 0.8)
+    X_train = model_df[features].iloc[:split]
+    y_train = model_df[target].iloc[:split]
+    if task_type == "Classification":
+        y_train, _ = make_classification_labels(y_train, model_df[target].iloc[split:])
+    pipeline = build_model_pipeline(model_name, task_type, use_scaling, scaler_name)
+    pipeline.fit(X_train, y_train)
+    return pipeline, X_train, y_train
+
+
+def model_feature_importance(
+    pipeline: Pipeline,
+    features: list[str],
+    X_train: pd.DataFrame,
+    y_train: pd.Series,
+    task_type: str,
+) -> pd.DataFrame:
+    fitted = pipeline.named_steps["model"]
+    if hasattr(fitted, "feature_importances_"):
+        values = np.asarray(fitted.feature_importances_)
+        method = "Built-in feature importance"
+    elif hasattr(fitted, "coef_"):
+        values = np.abs(np.ravel(fitted.coef_))
+        if len(values) != len(features):
+            values = values.reshape(-1, len(features)).mean(axis=0)
+        method = "Absolute coefficient size"
+    else:
+        baseline = pipeline.score(X_train, y_train)
+        values = []
+        rng = np.random.default_rng(0)
+        for feature in features:
+            shuffled = X_train.copy()
+            shuffled[feature] = rng.permutation(shuffled[feature].to_numpy())
+            values.append(max(0.0, baseline - pipeline.score(shuffled, y_train)))
+        values = np.asarray(values)
+        method = "Permutation importance"
+    importance = pd.DataFrame({"Feature": features, "Importance": values, "Method": method})
+    if importance["Importance"].sum() > 0:
+        importance["Importance %"] = importance["Importance"] / importance["Importance"].sum() * 100
+    else:
+        importance["Importance %"] = 0.0
+    return importance.sort_values("Importance", ascending=False)
+
+
+def data_dictionary(df: pd.DataFrame, date_col: str | None, target: str | None) -> pd.DataFrame:
+    rows = []
+    for col in df.columns:
+        series = df[col]
+        missing = int(series.isna().sum())
+        role = "Date" if col == date_col else "Default target" if col == target else "Feature"
+        if pd.api.types.is_numeric_dtype(series):
+            example = f"min={series.min():,.3f}, max={series.max():,.3f}" if series.notna().any() else "empty"
+        else:
+            examples = series.dropna().astype(str).head(3).tolist()
+            example = ", ".join(examples) if examples else "empty"
+        rows.append(
+            {
+                "Column": col,
+                "Role": role,
+                "Type": str(series.dtype),
+                "Missing": missing,
+                "Missing %": missing / len(df) * 100 if len(df) else 0,
+                "Unique values": int(series.nunique(dropna=True)),
+                "Example / Range": example,
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def executive_report_markdown(
+    df: pd.DataFrame,
+    date_col: str | None,
+    target: str | None,
+    evaluation: pd.DataFrame | None,
+) -> str:
+    date_range = "not available"
+    if date_col and date_col in df.columns and df[date_col].notna().any():
+        date_range = f"{df[date_col].min().date()} to {df[date_col].max().date()}"
+    best_model = "Run Evaluation to calculate"
+    if evaluation is not None and not evaluation.empty:
+        metric = "R2" if "R2" in evaluation.columns else "F1"
+        best = evaluation.sort_values(metric, ascending=False).iloc[0]
+        best_model = f"{best['Model']} ({metric}={best[metric]:.3f})"
+    top_signal = "not available"
+    if target and target in df.columns:
+        candidates = [col for col in interpretable_numeric_features(df.select_dtypes(include=["number"]).columns.tolist(), target) if col != target]
+        if candidates:
+            cmat = corr_matrix(df[[target] + candidates].dropna(subset=[target]))
+            if target in cmat.columns:
+                corr = cmat[target].drop(labels=[target], errors="ignore").dropna()
+                if not corr.empty:
+                    signal = corr.abs().idxmax()
+                    top_signal = f"{signal} (corr={corr[signal]:.2f})"
+    return f"""# US Housing Dashboard Executive Report
+
+## Dataset
+- Rows: {len(df):,}
+- Columns: {df.shape[1]:,}
+- Date range: {date_range}
+- Main target: {target or "not detected"}
+
+## Main Findings
+- Strongest meaningful signal: {top_signal}
+- Best evaluated model: {best_model}
+- Overall project result: housing prices are best explained by combining market theory, model evaluation, OLAP segmentation, and current housing context.
+
+## Recommendation
+Use the Evaluation page for model choice, OLAP for segment interpretation, Forecast for future direction, and Paper Review for real-life comparison.
+"""
+
+
+def validation_report(df: pd.DataFrame, date_col: str | None, target: str | None) -> pd.DataFrame:
+    checks = []
+    checks.append(
+        {
+            "Check": "Dataset has rows",
+            "Status": "Pass" if len(df) > 0 else "Fail",
+            "Value": len(df),
+            "Why it matters": "Production pipelines should not score empty data.",
+        }
+    )
+    checks.append(
+        {
+            "Check": "Duplicate rows",
+            "Status": "Pass" if int(df.duplicated().sum()) == 0 else "Warning",
+            "Value": int(df.duplicated().sum()),
+            "Why it matters": "Duplicates can bias model training and reporting.",
+        }
+    )
+    missing_pct = float(df.isna().sum().sum() / max(df.size, 1) * 100)
+    checks.append(
+        {
+            "Check": "Overall missing data",
+            "Status": "Pass" if missing_pct < 5 else "Warning" if missing_pct < 20 else "Fail",
+            "Value": f"{missing_pct:.2f}%",
+            "Why it matters": "High missingness can make dashboards and models unstable.",
+        }
+    )
+    checks.append(
+        {
+            "Check": "Date column detected",
+            "Status": "Pass" if date_col and date_col in df.columns else "Warning",
+            "Value": date_col or "not detected",
+            "Why it matters": "Time order is required for forecasting, drift, and market-period comparison.",
+        }
+    )
+    checks.append(
+        {
+            "Check": "Target detected",
+            "Status": "Pass" if target and target in df.columns else "Fail",
+            "Value": target or "not detected",
+            "Why it matters": "A target is required for supervised modeling and final conclusions.",
+        }
+    )
+    numeric_cols = df.select_dtypes(include=["number"]).columns.tolist()
+    inf_count = int(np.isinf(df[numeric_cols]).sum().sum()) if numeric_cols else 0
+    checks.append(
+        {
+            "Check": "Infinite numeric values",
+            "Status": "Pass" if inf_count == 0 else "Fail",
+            "Value": inf_count,
+            "Why it matters": "Infinite values break many model and chart pipelines.",
+        }
+    )
+    return pd.DataFrame(checks)
+
+
+def drift_report(df: pd.DataFrame, date_col: str | None, numeric_cols: list[str]) -> pd.DataFrame:
+    if not date_col or date_col not in df.columns or len(numeric_cols) == 0:
+        return pd.DataFrame()
+    ordered = df.sort_values(date_col).dropna(subset=[date_col])
+    if len(ordered) < 20:
+        return pd.DataFrame()
+    split = max(5, len(ordered) // 3)
+    baseline = ordered.head(split)
+    current = ordered.tail(split)
+    rows = []
+    for col in numeric_cols:
+        base_mean = baseline[col].replace([np.inf, -np.inf], np.nan).mean()
+        curr_mean = current[col].replace([np.inf, -np.inf], np.nan).mean()
+        base_std = baseline[col].replace([np.inf, -np.inf], np.nan).std()
+        if pd.isna(base_mean) or pd.isna(curr_mean):
+            continue
+        pct_shift = ((curr_mean - base_mean) / abs(base_mean) * 100) if base_mean else np.nan
+        z_shift = ((curr_mean - base_mean) / base_std) if base_std and not pd.isna(base_std) else np.nan
+        if np.isfinite(z_shift) and abs(z_shift) >= 1.5:
+            status = "High drift"
+        elif np.isfinite(pct_shift) and abs(pct_shift) >= 20:
+            status = "Moderate drift"
+        else:
+            status = "Stable"
+        rows.append(
+            {
+                "Feature": col,
+                "Baseline mean": base_mean,
+                "Current mean": curr_mean,
+                "Mean shift %": pct_shift,
+                "Z shift": z_shift,
+                "Status": status,
+            }
+        )
+    return pd.DataFrame(rows).sort_values("Z shift", key=lambda value: value.abs(), ascending=False)
+
+
+def model_card_markdown(
+    target: str | None,
+    evaluation: pd.DataFrame | None,
+    validation: pd.DataFrame,
+    drift: pd.DataFrame,
+) -> str:
+    best_model = "Not evaluated"
+    metric_line = "Run Evaluation to record model performance."
+    if evaluation is not None and not evaluation.empty:
+        metric = "R2" if "R2" in evaluation.columns else "F1"
+        best = evaluation.sort_values(metric, ascending=False).iloc[0]
+        best_model = str(best["Model"])
+        metric_line = f"{metric}: {best[metric]:.3f}"
+    failed_checks = int((validation["Status"] == "Fail").sum()) if not validation.empty else 0
+    drift_count = int((drift["Status"] != "Stable").sum()) if not drift.empty else 0
+    return f"""# Model Card
+
+## Intended Use
+Educational analysis of U.S. housing and macroeconomic indicators.
+
+## Target
+{target or "Not detected"}
+
+## Best Current Model
+{best_model}
+
+## Performance
+{metric_line}
+
+## Data Validation
+- Failed checks: {failed_checks}
+- Validation should be reviewed before trusting model outputs.
+
+## Drift Monitoring
+- Features with moderate/high drift: {drift_count}
+- Drift means recent data behaves differently from the baseline period.
+
+## Limitations
+- Correlation and model predictions are not causal proof.
+- Forecasts and scenarios are educational, not financial advice.
+- National-level data can hide regional differences.
+
+## Governance Recommendation
+Re-run validation, drift checks, and model evaluation whenever the dataset is updated.
+"""
+
+
+def model_family_reason(model_name: str) -> str:
+    reasons = {
+        "RandomForest": "RandomForest often performs well because it captures non-linear relationships and interactions between housing indicators without requiring one straight-line pattern.",
+        "GradientBoosting": "GradientBoosting can score highly because it builds many small corrections, which helps when housing movement is driven by several weak signals together.",
+        "NeuralNetwork": "NeuralNetwork can learn flexible non-linear patterns, but it needs enough clean rows; on small datasets it can also underperform simpler models.",
+        "Ridge": "Ridge is stable and useful when the relationship is mostly linear, but it can miss curved or threshold effects in housing data.",
+        "LinearRegression": "LinearRegression is easy to interpret, but it usually scores lower when the market has non-linear shocks or interacting variables.",
+        "SVR": "SVR can model non-linear patterns, but it is sensitive to scaling, feature choice, and parameter settings.",
+        "DecisionTree": "DecisionTree is easy to read, but one tree can overfit training patterns and generalize poorly to the test period.",
+        "KNN": "KNN depends on similar historical examples; it can struggle when the newest market period is different from older periods.",
+        "LogisticRegression": "LogisticRegression is strong for simple class boundaries, but it can score lower when Low/Medium/High classes overlap.",
+    }
+    return reasons.get(model_name, "This model performs differently because each algorithm learns a different shape from the same features.")
+
+
+def evaluation_explanation(evaluation: pd.DataFrame, task_type: str) -> str:
+    if evaluation.empty:
+        return "Run evaluation first to explain model performance."
+    metric = "R2" if task_type == "Regression" else "F1"
+    ranked = evaluation.sort_values(metric, ascending=False)
+    best = ranked.iloc[0]
+    weakest = ranked.iloc[-1]
+    best_score = float(best[metric])
+    weak_score = float(weakest[metric])
+    gap = best_score - weak_score
+    if task_type == "Classification" and "Accuracy" in evaluation.columns:
+        accuracy_note = (
+            f" Accuracy is highest for `{best['Model']}` because its learned boundaries separate the target classes better on the test rows. "
+            "Models with lower accuracy likely confuse nearby classes such as Medium vs High when the selected indicators overlap."
+        )
+    else:
+        accuracy_note = (
+            " The same idea applies to regression: the best model follows the test-period pattern with less error, while weaker models miss more turning points."
+        )
+    return (
+        f"`{best['Model']}` is strongest on this evaluation because it gets the best `{metric}` score of `{best_score:.3f}`, "
+        f"while `{weakest['Model']}` is lowest at `{weak_score:.3f}`. The gap is `{gap:.3f}`. "
+        f"{model_family_reason(str(best['Model']))} {model_family_reason(str(weakest['Model']))}"
+        f"{accuracy_note} This does not mean the best model is always best in real life; it means it fit this dataset split and selected features better."
+    )
+
+
 def prepare_unsupervised_matrix(df: pd.DataFrame, features: list[str], scale_data: bool) -> tuple[pd.DataFrame, np.ndarray]:
     matrix = df[features].copy()
     matrix = matrix.replace([np.inf, -np.inf], np.nan).dropna()
@@ -1091,6 +1684,135 @@ def olap_example_text(insight: dict[str, object]) -> str:
     )
 
 
+def olap_interpretation_panel(
+    insight: dict[str, object],
+    row_dims: list[str],
+    column_dims: list[str],
+    selected_values: list[str],
+) -> dict[str, str]:
+    aggregation = str(insight["aggregation"])
+    measure = str(insight["measure"])
+    top_label = str(insight["top_label"])
+    bottom_label = str(insight["bottom_label"])
+    top_value = float(insight["top_value"])
+    bottom_value = float(insight["bottom_value"])
+    spread = float(insight["spread"])
+    pct_gap = (spread / abs(bottom_value) * 100) if bottom_value else np.nan
+    row_text = ", ".join(row_dims) if row_dims else "the selected rows"
+    column_text = ", ".join(column_dims) if column_dims else "no column split"
+    value_text = ", ".join(selected_values)
+
+    if aggregation == "mean":
+        meaning = (
+            "This is an average comparison. The top segment usually has a higher level of the measure, "
+            "not simply more records."
+        )
+        caution = "Check the count or raw data before saying the segment is larger in market size."
+    elif aggregation == "count":
+        meaning = (
+            "This is a record-count comparison. The top segment appears most often in the filtered dataset."
+        )
+        caution = "Do not interpret count as higher housing prices; it only measures frequency."
+    elif aggregation == "std":
+        meaning = (
+            "This is a volatility comparison. The top segment is the least stable or most variable group."
+        )
+        caution = "High standard deviation can mean risk, instability, or a period with mixed market behavior."
+    elif aggregation in {"sum", "max"}:
+        meaning = (
+            f"This {aggregation} comparison highlights concentration or peak values across segments."
+        )
+        caution = "Use mean or median-style checks before turning this into an average-price conclusion."
+    else:
+        meaning = (
+            f"This {aggregation} comparison focuses on boundary values rather than the full distribution."
+        )
+        caution = "Boundary values can be affected by unusual periods, so verify with Explore charts."
+
+    if np.isfinite(pct_gap):
+        gap_sentence = (
+            f"The top segment is {spread:,.2f} above the bottom segment, a relative gap of {pct_gap:,.1f}%."
+        )
+    else:
+        gap_sentence = f"The top segment is {spread:,.2f} above the bottom segment."
+
+    return {
+        "what": (
+            f"The OLAP cube compares `{value_text}` using `{aggregation}` across `{row_text}` "
+            f"and `{column_text}`. The strongest segment is `{top_label}` ({top_value:,.2f}); "
+            f"the weakest is `{bottom_label}` ({bottom_value:,.2f}). {gap_sentence}"
+        ),
+        "why": (
+            f"{meaning} This matters because it shows where the dataset is not behaving like one single average; "
+            "different segments have different market stories."
+        ),
+        "next": (
+            f"Use `{top_label}` as the main OLAP story, then compare it with the trend chart, correlation results, "
+            "and ML evaluation. If the same segment also performs strongly in those pages, the conclusion is stronger."
+        ),
+        "caution": caution,
+    }
+
+
+def cube_mesh_trace(
+    x_center: float,
+    y_center: float,
+    z_center: float,
+    size: float,
+    color: str,
+    hover_text: str,
+) -> go.Mesh3d:
+    half = size / 2
+    x = [
+        x_center - half,
+        x_center + half,
+        x_center + half,
+        x_center - half,
+        x_center - half,
+        x_center + half,
+        x_center + half,
+        x_center - half,
+    ]
+    y = [
+        y_center - half,
+        y_center - half,
+        y_center + half,
+        y_center + half,
+        y_center - half,
+        y_center - half,
+        y_center + half,
+        y_center + half,
+    ]
+    z = [
+        z_center - half,
+        z_center - half,
+        z_center - half,
+        z_center - half,
+        z_center + half,
+        z_center + half,
+        z_center + half,
+        z_center + half,
+    ]
+    i = [0, 0, 0, 1, 1, 2, 4, 4, 5, 5, 6, 7]
+    j = [1, 2, 4, 2, 5, 3, 5, 6, 6, 1, 2, 3]
+    k = [2, 3, 5, 5, 6, 7, 6, 7, 2, 0, 3, 0]
+    return go.Mesh3d(
+        x=x,
+        y=y,
+        z=z,
+        i=i,
+        j=j,
+        k=k,
+        color=color,
+        opacity=0.9,
+        flatshading=True,
+        text=[hover_text] * 8,
+        hovertemplate="%{text}<extra></extra>",
+        showscale=False,
+        lighting=dict(ambient=0.55, diffuse=0.7, fresnel=0.2, specular=0.35, roughness=0.45),
+    )
+
+
 def reinforcement_market_lab(
     data: pd.DataFrame,
     date_col: str,
@@ -1217,14 +1939,30 @@ def reinforcement_market_lab(
 
 
 with st.sidebar:
-    st.title("US Housing")
-    st.caption("Analytics, forecasting, model testing, and app-code generation.")
+    st.markdown(
+        """
+        <div class="brand-lockup">
+            <div class="brand-mark">HI</div>
+            <div>
+                <div class="brand-name">HousingIQ</div>
+                <div class="brand-subtitle">Enterprise Analytics</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.caption("Housing intelligence, ML evaluation, OLAP segmentation, and governance.")
     st.divider()
 
     uploaded = st.file_uploader("Upload Kaggle CSV", type=["csv"])
     use_default = st.checkbox("Use default CSV", value=(uploaded is None))
     dark_mode = st.toggle("Dark mode", value=False)
     show_raw = st.checkbox("Show raw data preview", value=False)
+
+    st.divider()
+    st.subheader("Search")
+    dashboard_query = st.text_input("Find a page or feature", placeholder="Try: accuracy, OLAP, forecast, drift")
+    render_search_results(dashboard_query)
 
     st.divider()
     st.subheader("Dataset")
@@ -1272,6 +2010,13 @@ target_default = default_target(num_cols)
 st.markdown(
     f"""
     <div class="hero">
+        <div class="brand-lockup">
+            <div class="brand-mark">HI</div>
+            <div>
+                <div class="brand-name">HousingIQ</div>
+                <div class="brand-subtitle">Decision-grade housing intelligence</div>
+            </div>
+        </div>
         <h1>US Housing Intelligence Dashboard</h1>
         <p>
             Organized analysis for housing prices, macro indicators, administration comparisons,
@@ -1281,6 +2026,38 @@ st.markdown(
             <span class="chip">{source_name}</span>
             <span class="chip">Date column: {date_col or "not detected"}</span>
             <span class="chip">Default target: {target_default or "not detected"}</span>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+st.markdown(
+    """
+    <div class="workflow-strip">
+        <div class="workflow-step">
+            <div class="step-kicker">01 Foundation</div>
+            <div class="step-title">Data Quality + Dictionary</div>
+        </div>
+        <div class="workflow-step">
+            <div class="step-kicker">02 Discovery</div>
+            <div class="step-title">Overview + Exploration</div>
+        </div>
+        <div class="workflow-step">
+            <div class="step-kicker">03 Modeling</div>
+            <div class="step-title">ML + Evaluation</div>
+        </div>
+        <div class="workflow-step">
+            <div class="step-kicker">04 Segments</div>
+            <div class="step-title">OLAP + Unsupervised</div>
+        </div>
+        <div class="workflow-step">
+            <div class="step-kicker">05 Decisions</div>
+            <div class="step-title">Forecast + Simulator</div>
+        </div>
+        <div class="workflow-step">
+            <div class="step-kicker">06 Governance</div>
+            <div class="step-title">Report + Readiness</div>
         </div>
     </div>
     """,
@@ -1335,6 +2112,42 @@ with chat_right:
             st.session_state.ai_chat_messages = []
             st.rerun()
 
+if "show_onboarding" not in st.session_state:
+    st.session_state.show_onboarding = True
+
+def onboarding_content() -> None:
+    st.markdown("Welcome to **HousingIQ**. Follow this path for your first demo:")
+    st.markdown(
+        """
+        1. **Start Here**: read the project flow.
+        2. **Overview**: check trend and correlation.
+        3. **Evaluation**: compare models and explain the best one.
+        4. **OLAP & Export**: inspect the pivot and 3D cube.
+        5. **Conclusion**: use the final project statement.
+        """
+    )
+    st.info("Use sidebar Search for words like `accuracy`, `OLAP`, `forecast`, or `drift`.", icon=":material/search:")
+    if st.button("Got it", key="close_onboarding"):
+        st.session_state.show_onboarding = False
+        st.rerun()
+
+
+if st.session_state.show_onboarding:
+    if hasattr(st, "dialog"):
+        @st.dialog("First-Time Guide")
+        def onboarding_dialog() -> None:
+            onboarding_content()
+
+        onboarding_dialog()
+    else:
+        with st.popover("First-Time Guide", icon=":material/assistant_navigation:"):
+            onboarding_content()
+
+with st.sidebar:
+    if st.button("Show guide again"):
+        st.session_state.show_onboarding = True
+        st.rerun()
+
 metric_cols = st.columns(5)
 with metric_cols[0]:
     metric_card("Rows", f"{len(df):,}")
@@ -1353,6 +2166,7 @@ if show_raw:
 
 tabs = st.tabs(
     [
+        "Start Here",
         "Overview",
         "Explore",
         "Data Quality",
@@ -1363,13 +2177,88 @@ tabs = st.tabs(
         "Reinforcement Lab",
         "Forecast",
         "Conclusion",
+        "Paper Review",
         "Code Lab",
         "OLAP & Export",
+        "Executive Summary",
+        "Data Dictionary",
+        "Scenario Simulator",
+        "Production Readiness",
     ]
 )
 
 
 with tabs[0]:
+    st.subheader("Start Here")
+    st.caption("A simple guided path for first-time users, evaluators, and project demos.")
+    learning_cards(
+        [
+            (
+                "Best first click",
+                "Executive Summary",
+                "Use it to understand the full project story before looking at detailed charts.",
+            ),
+            (
+                "Best proof",
+                "Evaluation",
+                "Use it to compare models with R2, RMSE, Accuracy, Precision, Recall, F1, and explainability.",
+            ),
+            (
+                "Best insight",
+                "OLAP & Export",
+                "Use it to explain the strongest housing segment with a pivot table, interpretation, and 3D cube.",
+            ),
+        ]
+    )
+
+    start_cols = st.columns([1, 1])
+    with start_cols[0]:
+        st.markdown("#### Recommended App Flow")
+        flow = pd.DataFrame(
+            [
+                {"Step": 1, "Page": "Executive Summary", "What to say": "This is the full project story and report preview."},
+                {"Step": 2, "Page": "Overview", "What to say": "This shows the housing target trend and meaningful correlations."},
+                {"Step": 3, "Page": "Evaluation", "What to say": "This proves which model performs best and why."},
+                {"Step": 4, "Page": "OLAP & Export", "What to say": "This finds the most important segment and visualizes a 3D OLAP cube."},
+                {"Step": 5, "Page": "Paper Review", "What to say": "This compares our results with outside housing research and current market facts."},
+                {"Step": 6, "Page": "Production Readiness", "What to say": "This shows big-company validation, drift monitoring, and model governance."},
+                {"Step": 7, "Page": "Conclusion", "What to say": "This gives the final project conclusion."},
+            ]
+        )
+        st.dataframe(flow, width="stretch", hide_index=True)
+
+    with start_cols[1]:
+        st.markdown("#### Two-Minute Demo Script")
+        st.markdown(
+            """
+            1. Start with the Executive Summary to introduce the project goal.
+            2. Open Overview and explain the target trend plus strongest meaningful correlation.
+            3. Open Evaluation and explain why the best model wins.
+            4. Open OLAP & Export and explain the top segment and cube.
+            5. Open Paper Review to connect the result to real housing research.
+            6. Finish with Conclusion and Production Readiness.
+            """
+        )
+        st.info(
+            "Presentation tip: do not open every tab in a demo. Use the recommended flow, then mention the other tabs as supporting tools.",
+            icon=":material/slideshow:",
+        )
+
+    st.markdown("#### Final Click-Through Checklist")
+    checklist = pd.DataFrame(
+        [
+            {"Check": "Overview loads without errors", "Status": "Do before submission"},
+            {"Check": "Evaluation can run model comparison", "Status": "Do before submission"},
+            {"Check": "OLAP pivot and 3D cube display clearly", "Status": "Do before submission"},
+            {"Check": "Executive report downloads", "Status": "Do before submission"},
+            {"Check": "Production Readiness shows validation and drift", "Status": "Do before submission"},
+            {"Check": "No red Streamlit errors appear", "Status": "Do before submission"},
+        ]
+    )
+    st.dataframe(checklist, width="stretch", hide_index=True)
+
+
+with tabs[1]:
     st.subheader("Overview")
     if target_default and date_col and df[date_col].notna().any():
         left, right = st.columns([2, 1])
@@ -1504,7 +2393,7 @@ with tabs[0]:
         st.info("Need at least two numeric columns to calculate correlations.")
 
 
-with tabs[1]:
+with tabs[2]:
     st.subheader("Explore")
     if not num_cols:
         st.info("No numeric columns were found.")
@@ -1583,7 +2472,7 @@ with tabs[1]:
             )
 
 
-with tabs[2]:
+with tabs[3]:
     st.subheader("Data Quality")
     missing = df.isna().sum().sort_values(ascending=False).reset_index()
     missing.columns = ["column", "missing"]
@@ -1598,7 +2487,7 @@ with tabs[2]:
         st.dataframe(df[num_cols].describe().T.round(3), width="stretch")
 
 
-with tabs[3]:
+with tabs[4]:
     st.subheader("Administration Comparison")
     if not num_cols:
         st.info("No numeric measures are available for comparison.")
@@ -1632,8 +2521,27 @@ with tabs[3]:
                         st.plotly_chart(radar, width="stretch")
 
 
-with tabs[4]:
+with tabs[5]:
     st.subheader("Machine Learning Lab")
+    learning_cards(
+        [
+            (
+                "What this page does",
+                "Train supervised models",
+                "Choose a target, select features, then run regression or classification models.",
+            ),
+            (
+                "Beginner rule",
+                "Start simple",
+                "Use Ridge or RandomForest first. Then compare all models before trusting one result.",
+            ),
+            (
+                "What to report",
+                "Model plus evidence",
+                "Mention the best score, actual-vs-predicted gap, and strongest feature relationship.",
+            ),
+        ]
+    )
     if len(num_cols) < 2:
         st.info("ML needs at least two numeric columns.")
     else:
@@ -1930,9 +2838,28 @@ with tabs[4]:
                 )
 
 
-with tabs[5]:
+with tabs[6]:
     st.subheader("Model Evaluation")
     st.caption("Compare supervised models side by side with the metrics used in machine-learning reports.")
+    learning_cards(
+        [
+            (
+                "What this page does",
+                "Compare model quality",
+                "It runs all supervised models and ranks them with standard evaluation metrics.",
+            ),
+            (
+                "Beginner rule",
+                "Use the right metric",
+                "Regression uses R2, MAE, and RMSE. Classification uses Accuracy, Precision, Recall, F1, and ROC AUC.",
+            ),
+            (
+                "What to report",
+                "Why the best wins",
+                "Use the explanation and feature importance to say why one model works better than another.",
+            ),
+        ]
+    )
     if len(num_cols) < 2:
         st.info("Evaluation needs at least two numeric columns.")
     else:
@@ -1989,6 +2916,7 @@ with tabs[5]:
                     f"RMSE = `{best['RMSE']:.3f}`, and MAE = `{best['MAE']:.3f}`.",
                     icon=":material/emoji_events:",
                 )
+                st.info(evaluation_explanation(evaluation, task), icon=":material/help:")
                 long_metrics = evaluation.melt(
                     id_vars=["Model"],
                     value_vars=["MAE", "RMSE", "R2"],
@@ -2013,6 +2941,7 @@ with tabs[5]:
                     f"and recall = `{best['Recall']:.3f}`.",
                     icon=":material/emoji_events:",
                 )
+                st.info(evaluation_explanation(evaluation, task), icon=":material/help:")
                 metric_cols = ["Accuracy", "Precision", "Recall", "F1"]
                 if "ROC AUC" in evaluation.columns and evaluation["ROC AUC"].notna().any():
                     metric_cols.append("ROC AUC")
@@ -2041,11 +2970,70 @@ with tabs[5]:
                 file_name="model_evaluation_metrics.csv",
                 mime="text/csv",
             )
+            if eval_features:
+                st.markdown("#### Model Explainability")
+                try:
+                    metric = "R2" if task == "Regression" else "F1"
+                    best_model_name = evaluation.sort_values(metric, ascending=False).iloc[0]["Model"]
+                    explain_pipeline, explain_X, explain_y = fit_best_model_for_task(
+                        df,
+                        eval_target,
+                        eval_features,
+                        task,
+                        eval_scale,
+                        eval_scaler,
+                        best_model_name,
+                    )
+                    importance = model_feature_importance(
+                        explain_pipeline,
+                        eval_features,
+                        explain_X,
+                        explain_y,
+                        task,
+                    )
+                    st.success(
+                        f"Explainability result: `{importance.iloc[0]['Feature']}` is the most influential feature for `{best_model_name}`.",
+                        icon=":material/manage_search:",
+                    )
+                    st.plotly_chart(
+                        px.bar(
+                            importance.head(12).sort_values("Importance"),
+                            x="Importance",
+                            y="Feature",
+                            orientation="h",
+                            color="Importance %",
+                            color_continuous_scale="Turbo",
+                            title=f"Feature Importance for {best_model_name}",
+                        ),
+                        width="stretch",
+                    )
+                    st.dataframe(importance.round(4), width="stretch", hide_index=True)
+                except Exception as err:
+                    st.info(f"Could not calculate explainability for the current setup: {err}")
 
 
-with tabs[6]:
+with tabs[7]:
     st.subheader("Unsupervised Learning Lab")
     st.caption("Find groups, lower-dimensional structure, and unusual observations without a target variable.")
+    learning_cards(
+        [
+            (
+                "What this page does",
+                "Find hidden structure",
+                "Unsupervised learning does not predict a target. It finds groups, patterns, and unusual records.",
+            ),
+            (
+                "Beginner rule",
+                "Pick the method by question",
+                "Use KMeans for segments, PCA for simplification, DBSCAN for dense groups, and IsolationForest for anomalies.",
+            ),
+            (
+                "What to report",
+                "Market regimes",
+                "Explain what the clusters or components reveal about different housing-market conditions.",
+            ),
+        ]
+    )
     if len(num_cols) < 2:
         st.info("Unsupervised learning needs at least two numeric columns.")
     else:
@@ -2223,9 +3211,28 @@ with tabs[6]:
                     )
 
 
-with tabs[7]:
+with tabs[8]:
     st.subheader("Reinforcement Learning Lab")
     st.caption("Learn a simple decision policy from repeated market states, actions, and rewards.")
+    learning_cards(
+        [
+            (
+                "What this page does",
+                "Learn decisions",
+                "Reinforcement learning learns actions from rewards instead of predicting one number.",
+            ),
+            (
+                "Beginner rule",
+                "State, action, reward",
+                "State means market condition, action means buy/hold/wait, and reward means whether the action helped.",
+            ),
+            (
+                "What to report",
+                "Policy result",
+                "Report the best learned action for the strongest market state and explain it as a simulation.",
+            ),
+        ]
+    )
     if not date_col or not target_default or len(num_cols) < 1:
         st.info("Reinforcement learning needs a date column and at least one numeric target.")
     else:
@@ -2319,8 +3326,27 @@ with tabs[7]:
             )
 
 
-with tabs[8]:
+with tabs[9]:
     st.subheader("Forecast")
+    learning_cards(
+        [
+            (
+                "What this page does",
+                "Predict future direction",
+                "Forecasting uses historical target values and optional features to estimate future periods.",
+            ),
+            (
+                "Beginner rule",
+                "Forecast is not proof",
+                "Use forecast as a scenario, then compare it with theory, OLAP, and evaluation results.",
+            ),
+            (
+                "What to report",
+                "Direction and risk",
+                "Report whether the model predicts increase, decrease, or stability, and mention uncertainty.",
+            ),
+        ]
+    )
     if not date_col or df[date_col].isna().all() or not num_cols:
         st.info("Forecasting needs a date column and numeric target.")
     else:
@@ -2389,7 +3415,7 @@ with tabs[8]:
             )
 
 
-with tabs[9]:
+with tabs[10]:
     st.subheader("Final Conclusion")
     st.caption("Connect the dataset, housing theory, real-life history, and model evidence into one final project result.")
     if not target_default or not num_cols:
@@ -2510,7 +3536,198 @@ with tabs[9]:
         )
 
 
-with tabs[10]:
+with tabs[11]:
+    st.subheader("Paper Review & Real-Life Comparison")
+    st.caption("Compare outside housing research and current market facts with this dashboard's results.")
+    if not target_default or not num_cols:
+        st.info("A numeric target is needed for the paper comparison.")
+    else:
+        paper_target = st.selectbox(
+            "Paper comparison target",
+            num_cols,
+            index=num_cols.index(target_default) if target_default in num_cols else 0,
+            key="paper_target",
+        )
+        paper_features = [
+            col for col in interpretable_numeric_features(num_cols, paper_target) if col != paper_target
+        ]
+        paper_theory = theory_check_table(df, paper_target, paper_features)
+        paper_periods = (
+            real_life_period_table(df, date_col, paper_target)
+            if date_col and date_col in df.columns
+            else pd.DataFrame()
+        )
+        latest_change = None
+        if date_col and date_col in df.columns:
+            ordered = df[[date_col, paper_target]].dropna().sort_values(date_col)
+            if len(ordered) >= 12:
+                latest_change = float(ordered[paper_target].iloc[-1] - ordered[paper_target].iloc[-12])
+        best_paper_driver = None
+        best_paper_corr = None
+        paper_corr_df = df[[paper_target] + paper_features].dropna(subset=[paper_target])
+        if paper_features and len(paper_corr_df) >= 3:
+            paper_corr_matrix = corr_matrix(paper_corr_df)
+            paper_driver_corr = paper_corr_matrix[paper_target].drop(labels=[paper_target], errors="ignore").dropna()
+            if not paper_driver_corr.empty:
+                best_paper_driver = paper_driver_corr.abs().idxmax()
+                best_paper_corr = float(paper_driver_corr[best_paper_driver])
+
+        st.markdown("#### Outside Paper / Research Benchmark")
+        paper_rows = pd.DataFrame(
+            [
+                {
+                    "Paper / source": "DiPasquale-Wheaton four-quadrant framework",
+                    "Outside theory": "Real-estate prices connect to demand, asset markets, construction, and supply adjustment.",
+                    "What our app checks": "Theory correlations, historical periods, OLAP segments, and ML model performance.",
+                    "Our result interpretation": "If several indicators support theory, the dataset behaves like a real housing market rather than random numbers.",
+                    "Positive project point": "The dashboard is strong because it tests theory across multiple pages, not only one chart.",
+                },
+                {
+                    "Paper / source": "Mortgage-rate impact research",
+                    "Outside theory": "Mortgage-rate shocks affect house prices and can affect housing activity even more strongly.",
+                    "What our app checks": "Rate-related features, affordability signals, model comparison, and forecast behavior.",
+                    "Our result interpretation": "If ML improves with macro features, the project supports the idea that rates and affordability matter.",
+                    "Positive project point": "Even if prices do not fall immediately, the model can show pressure through weaker predictive periods or mixed signals.",
+                },
+                {
+                    "Paper / source": "NAR March 2026 market report",
+                    "Outside theory": "The current market can have weak sales, improving inventory, and still-rising prices at the same time.",
+                    "What our app checks": "Recent target movement, ML evaluation, forecast, and high-rate pressure period.",
+                    "Our result interpretation": "If our target remains positive while some pressure variables are negative, that matches the mixed real-life market.",
+                    "Positive project point": "The project can defend a balanced conclusion: the market is pressured, but not collapsing.",
+                },
+            ]
+        )
+        st.dataframe(paper_rows, width="stretch", hide_index=True)
+        source_rows = pd.DataFrame(
+            [
+                {
+                    "Source": "Lisi (2015), four-quadrant real-estate model",
+                    "Why it matters": "Gives the theory benchmark for supply, demand, construction, and asset-market links.",
+                    "Link": "https://www.tandfonline.com/doi/abs/10.1080/10835547.2015.12091745",
+                },
+                {
+                    "Source": "Journal of Housing Economics mortgage-rate paper (2025)",
+                    "Why it matters": "Shows mortgage-rate changes have measurable effects on house prices and activity.",
+                    "Link": "https://www.sciencedirect.com/science/article/pii/S1051137725000385",
+                },
+                {
+                    "Source": "NAR Existing-Home Sales, March 2026",
+                    "Why it matters": "Current real-life benchmark: sales, prices, inventory, affordability, mortgage rates.",
+                    "Link": "https://www.nar.realtor/newsroom/nar-existing-home-sales-report-shows-3-6-decrease-in-march",
+                },
+                {
+                    "Source": "ALFRED/FRED Case-Shiller index, Jan 2026",
+                    "Why it matters": "Current national price-index benchmark for U.S. home prices.",
+                    "Link": "https://alfred.stlouisfed.org/series?seid=CSUSHPINSA",
+                },
+            ]
+        )
+        st.markdown("#### Outside Sources Used")
+        st.dataframe(source_rows, width="stretch", hide_index=True)
+
+        st.markdown("#### Our Results vs Paper Theory")
+        st.dataframe(paper_theory.round({"Observed correlation": 3}), width="stretch", hide_index=True)
+        supports = int((paper_theory["Evidence"] == "Supports theory").sum())
+        challenges = int((paper_theory["Evidence"] == "Challenges theory").sum())
+        st.success(
+            f"Paper comparison result: our selected dataset supports `{supports}` theory relationships and challenges `{challenges}`. "
+            "That is a strong realistic outcome: housing theory gives direction, but real markets contain mixed forces.",
+            icon=":material/article:",
+        )
+        if best_paper_driver is not None and best_paper_corr is not None:
+            st.info(
+                f"Our strongest meaningful dataset signal for `{paper_target}` is `{best_paper_driver}` "
+                f"with correlation `{best_paper_corr:.2f}`. This is useful for the paper comparison because "
+                "it gives one measurable result to place next to the outside theory.",
+                icon=":material/analytics:",
+            )
+
+        st.markdown("#### Our ML vs Real-Life Now")
+        eval_results = st.session_state.get("evaluation_results")
+        if eval_results is not None and not eval_results.empty:
+            task = st.session_state.get("evaluation_task", "Regression")
+            metric = "R2" if task == "Regression" else "F1"
+            best_ml = eval_results.sort_values(metric, ascending=False).iloc[0]
+            weakest_ml = eval_results.sort_values(metric, ascending=False).iloc[-1]
+            st.success(
+                f"Our best ML result is `{best_ml['Model']}` with `{metric} = {best_ml[metric]:.3f}`. "
+                f"The weakest tested model is `{weakest_ml['Model']}` with `{metric} = {weakest_ml[metric]:.3f}`. "
+                "This is a positive result because the project does not just claim one model is good; it proves which model "
+                "handles the selected housing indicators better.",
+                icon=":material/compare:",
+            )
+            current_comparison = pd.DataFrame(
+                [
+                    {
+                        "Real-life 2026 signal": "Existing-home sales fell 3.6% month over month in March 2026.",
+                        "Why it matters": "Sales weakness shows demand pressure and affordability problems.",
+                        "How our ML connects": "A stronger model should use multiple indicators, not only price history, because sales and prices can move differently.",
+                        "Positive takeaway": "If our best model beats simpler models, it supports using ML for a mixed housing market.",
+                    },
+                    {
+                        "Real-life 2026 signal": "NAR reported median existing-home price up 1.4% year over year to $408,800.",
+                        "Why it matters": "Prices stayed positive even with soft sales.",
+                        "How our ML connects": "The model can support a balanced conclusion: pressure exists, but price level can remain high.",
+                        "Positive takeaway": "Our project can explain resilience, not only decline.",
+                    },
+                    {
+                        "Real-life 2026 signal": "Inventory rose to 1.36 million units and 4.1 months of supply.",
+                        "Why it matters": "More supply can cool price growth, but inventory is still not fully normal.",
+                        "How our ML connects": "If supply-related features matter in the app, that aligns with real market interpretation.",
+                        "Positive takeaway": "This makes OLAP and feature comparison valuable for finding which segments remain strong.",
+                    },
+                    {
+                        "Real-life 2026 signal": "ALFRED/FRED Case-Shiller national index was 326.612 in Jan 2026 after recent highs.",
+                        "Why it matters": "National prices are still elevated even as growth cools.",
+                        "How our ML connects": "A useful model should capture slower growth rather than predict a simple crash.",
+                        "Positive takeaway": "A positive-but-cautious forecast is realistic and defensible.",
+                    },
+                ]
+            )
+            st.dataframe(current_comparison, width="stretch", hide_index=True)
+        else:
+            st.info(
+                "Run the Evaluation page first. Then this section will compare your best ML model against the real-life market story.",
+                icon=":material/compare:",
+            )
+
+        if latest_change is not None:
+            recent_direction = "positive" if latest_change > 0 else "negative" if latest_change < 0 else "flat"
+            st.warning(
+                f"Recent dataset signal: over the latest available 12 observations, `{paper_target}` moved `{recent_direction}` "
+                f"by `{latest_change:,.2f}`. Real-life 2026 context is also mixed: sales are soft, inventory is improving, "
+                "but national home prices have still shown modest year-over-year gains. That makes a positive-but-cautious "
+                "project conclusion more believable.",
+                icon=":material/trending_up:",
+            )
+
+        if not paper_periods.empty:
+            st.markdown("#### Historical Reality Check")
+            st.dataframe(
+                paper_periods.round({"Dataset change": 3, "Dataset change %": 2}),
+                width="stretch",
+                hide_index=True,
+            )
+        st.markdown("#### Paper-Style Final Comparison")
+        positive_bits = []
+        if supports > 0:
+            positive_bits.append(f"the dataset supports {supports} theory checks")
+        if latest_change is not None and latest_change >= 0:
+            positive_bits.append("the recent target movement is positive or stable")
+        if eval_results is not None and not eval_results.empty:
+            positive_bits.append("the ML page identifies a best model instead of guessing")
+        positive_sentence = ", ".join(positive_bits) if positive_bits else "the dashboard creates measurable evidence"
+        st.success(
+            f"Final paper comparison: outside housing research says prices are shaped by rates, supply, demand, and market frictions. "
+            f"Our project agrees with that broader view because {positive_sentence}. "
+            "Compared with the current 2026 market, the strongest positive point is that the app explains why prices can stay resilient "
+            "even when sales are weak: limited inventory and mixed macro conditions can keep price levels elevated.",
+            icon=":material/task_alt:",
+        )
+
+
+with tabs[12]:
     st.subheader("Code Lab")
     st.markdown(
         '<p class="section-note">Generate new Streamlit code for this app. Add an OpenAI API key for AI output, or use the built-in local templates.</p>',
@@ -2539,7 +3756,7 @@ with tabs[10]:
         )
 
 
-with tabs[11]:
+with tabs[13]:
     st.subheader("OLAP & Export")
     olap_tab, export_tab = st.tabs(["OLAP Cube", "Export"])
     with olap_tab:
@@ -2576,6 +3793,15 @@ with tabs[11]:
                         f"while {insight['bottom_label']} is lowest ({insight['bottom_value']:,.2f})."
                     )
                     st.info(olap_example_text(insight))
+                    interpretation = olap_interpretation_panel(insight, index, columns, values)
+                    st.markdown("#### OLAP Interpretation")
+                    interp_cols = st.columns(2)
+                    with interp_cols[0]:
+                        st.info(interpretation["what"], icon=":material/analytics:")
+                        st.success(interpretation["why"], icon=":material/insights:")
+                    with interp_cols[1]:
+                        st.warning(interpretation["caution"], icon=":material/warning:")
+                        st.info(interpretation["next"], icon=":material/route:")
                     st.markdown("**Top OLAP Segments**")
                     st.dataframe(insight["top_segments"], width="stretch", hide_index=True)
                     with st.expander("How to use this OLAP result"):
@@ -2606,8 +3832,8 @@ with tabs[11]:
         else:
             st.info("Select at least one row dimension and one value measure.")
 
-        st.markdown("#### Real 3D OLAP Cube Example")
-        st.caption("A cube uses three dimensions and one measure. Each point is one aggregated cube cell.")
+        st.markdown("#### Real 3D OLAP Block Cube")
+        st.caption("A true OLAP cube: each solid block is one aggregated cell from three dimensions.")
         cube_dims = cat_cols.copy()
         if len(cube_dims) >= 3 and num_cols:
             default_cube_dims = []
@@ -2644,57 +3870,135 @@ with tabs[11]:
                 if cube.empty:
                     st.info("No cube cells were created for the selected dimensions.")
                 else:
-                    cube = cube.sort_values("Aggregated Value", ascending=False).head(250).copy()
+                    cube = cube.sort_values("Aggregated Value", ascending=False).head(90).copy()
+                    axis_meta = {}
                     for dim in [x_dim, y_dim, z_dim]:
-                        categories = cube[dim].astype(str).drop_duplicates().tolist()
+                        cube[dim] = cube[dim].astype(str)
+                        categories = cube[dim].drop_duplicates().tolist()
                         mapping = {category: pos for pos, category in enumerate(categories)}
-                        cube[f"{dim} Code"] = cube[dim].astype(str).map(mapping)
+                        cube[f"{dim} Code"] = cube[dim].map(mapping)
+                        axis_meta[dim] = {"tickvals": list(mapping.values()), "ticktext": categories}
 
-                    size_scale = cube["Aggregated Value"].abs()
-                    if size_scale.max() == size_scale.min():
-                        cube["Cell Size"] = 18
-                    else:
-                        cube["Cell Size"] = 10 + 28 * (size_scale - size_scale.min()) / (
-                            size_scale.max() - size_scale.min()
+                    value_min = float(cube["Aggregated Value"].min())
+                    value_max = float(cube["Aggregated Value"].max())
+                    value_span = value_max - value_min
+                    cube["Cube Cell"] = (
+                        x_dim + ": " + cube[x_dim]
+                        + "<br>" + y_dim + ": " + cube[y_dim]
+                        + "<br>" + z_dim + ": " + cube[z_dim]
+                        + "<br>Value: " + cube["Aggregated Value"].map(lambda value: f"{value:,.2f}")
+                    )
+
+                    fig = go.Figure()
+                    for _, cube_row in cube.iterrows():
+                        normalized = 0.5 if value_span == 0 else (float(cube_row["Aggregated Value"]) - value_min) / value_span
+                        color = px.colors.sample_colorscale("Turbo", normalized)[0]
+                        fig.add_trace(
+                            cube_mesh_trace(
+                                float(cube_row[f"{x_dim} Code"]),
+                                float(cube_row[f"{y_dim} Code"]),
+                                float(cube_row[f"{z_dim} Code"]),
+                                0.72,
+                                color,
+                                str(cube_row["Cube Cell"]),
+                            )
                         )
-
-                    fig = px.scatter_3d(
-                        cube,
-                        x=f"{x_dim} Code",
-                        y=f"{y_dim} Code",
-                        z=f"{z_dim} Code",
-                        color="Aggregated Value",
-                        size="Cell Size",
-                        hover_data={
-                            x_dim: True,
-                            y_dim: True,
-                            z_dim: True,
-                            "Aggregated Value": ":,.2f",
-                            f"{x_dim} Code": False,
-                            f"{y_dim} Code": False,
-                            f"{z_dim} Code": False,
-                            "Cell Size": False,
-                        },
-                        color_continuous_scale="Viridis",
-                        title=f"3D OLAP Cube: {cube_agg.title()} {cube_measure}",
+                    fig.add_trace(
+                        go.Scatter3d(
+                            x=cube[f"{x_dim} Code"],
+                            y=cube[f"{y_dim} Code"],
+                            z=cube[f"{z_dim} Code"],
+                            mode="markers",
+                            marker=dict(
+                                size=0.01,
+                                color=cube["Aggregated Value"],
+                                colorscale="Turbo",
+                                colorbar=dict(title=cube_measure, thickness=14),
+                                opacity=0,
+                            ),
+                            hoverinfo="skip",
+                            showlegend=False,
+                        )
                     )
                     fig.update_layout(
-                        height=700,
+                        height=760,
+                        title=f"3D OLAP Block Cube: {cube_agg.title()} {cube_measure}",
+                        paper_bgcolor="rgba(0,0,0,0)",
+                        plot_bgcolor="rgba(0,0,0,0)",
+                        showlegend=False,
                         scene=dict(
-                            xaxis=dict(title=x_dim),
-                            yaxis=dict(title=y_dim),
-                            zaxis=dict(title=z_dim),
+                            bgcolor="rgba(245,248,252,0.72)",
+                            xaxis=dict(
+                                title=x_dim,
+                                tickmode="array",
+                                tickvals=axis_meta[x_dim]["tickvals"],
+                                ticktext=axis_meta[x_dim]["ticktext"],
+                                backgroundcolor="#eef4fb",
+                                gridcolor="#cbd5e1",
+                                showspikes=False,
+                            ),
+                            yaxis=dict(
+                                title=y_dim,
+                                tickmode="array",
+                                tickvals=axis_meta[y_dim]["tickvals"],
+                                ticktext=axis_meta[y_dim]["ticktext"],
+                                backgroundcolor="#f8fafc",
+                                gridcolor="#cbd5e1",
+                                showspikes=False,
+                            ),
+                            zaxis=dict(
+                                title=z_dim,
+                                tickmode="array",
+                                tickvals=axis_meta[z_dim]["tickvals"],
+                                ticktext=axis_meta[z_dim]["ticktext"],
+                                backgroundcolor="#eef4fb",
+                                gridcolor="#cbd5e1",
+                                showspikes=False,
+                            ),
+                            camera=dict(eye=dict(x=1.55, y=1.55, z=1.05)),
                         ),
-                        margin=dict(l=0, r=0, b=0, t=55),
+                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+                        margin=dict(l=0, r=0, b=0, t=70),
                     )
                     st.plotly_chart(fig, width="stretch")
 
+                    heatmap_summary = (
+                        cube.groupby([x_dim, y_dim], dropna=False)["Aggregated Value"]
+                        .mean()
+                        .reset_index()
+                    )
+                    heatmap = px.density_heatmap(
+                        heatmap_summary,
+                        x=x_dim,
+                        y=y_dim,
+                        z="Aggregated Value",
+                        histfunc="avg",
+                        color_continuous_scale="Turbo",
+                        title=f"Readable Cube Face: {x_dim} by {y_dim}",
+                    )
+                    heatmap.update_layout(height=420, xaxis_tickangle=-20)
+                    st.plotly_chart(heatmap, width="stretch")
+
                     top_cell = cube.iloc[0]
                     st.success(
-                        f"Cube example result: the strongest cell is {x_dim} = {top_cell[x_dim]}, "
+                        f"Block cube result: the strongest cube cell is {x_dim} = {top_cell[x_dim]}, "
                         f"{y_dim} = {top_cell[y_dim]}, {z_dim} = {top_cell[z_dim]}, with "
                         f"{cube_agg} {cube_measure} = {top_cell['Aggregated Value']:,.2f}.",
                         icon=":material/view_in_ar:",
+                    )
+                    st.info(
+                        "3D cube interpretation: each solid block is one OLAP cell created by crossing the three dimensions. "
+                        "Warmer/brighter blocks show where the selected housing measure is strongest. "
+                        "Use the top cell as a focused story, then verify it with trend charts and ML evaluation.",
+                        icon=":material/insights:",
+                    )
+                    st.markdown(
+                        f"""
+                        **How to write this in your project:** The 3D OLAP cube shows that `{cube_measure}` is not evenly distributed across
+                        `{x_dim}`, `{y_dim}`, and `{z_dim}`. The strongest cube cell identifies the most important segment to investigate.
+                        This supports a better conclusion because it connects the data result to a specific market period or group instead
+                        of only reporting an overall average.
+                        """
                     )
                     st.dataframe(
                         cube[[x_dim, y_dim, z_dim, "Aggregated Value"]].head(20),
@@ -2716,3 +4020,197 @@ with tabs[11]:
             file_name="filtered_us_housing.csv",
             mime="text/csv",
         )
+
+
+with tabs[14]:
+    st.subheader("Executive Summary")
+    st.caption("One page for presenting the whole project clearly.")
+    evaluation = st.session_state.get("evaluation_results")
+    report_md = executive_report_markdown(df, date_col, target_default, evaluation)
+
+    summary_cols = st.columns(4)
+    summary_cols[0].metric("Rows", f"{len(df):,}")
+    summary_cols[1].metric("Columns", f"{df.shape[1]:,}")
+    summary_cols[2].metric("Numeric features", f"{len(num_cols):,}")
+    summary_cols[3].metric("Target", target_default or "None")
+
+    st.markdown("#### Project Story")
+    st.success(
+        "This dashboard combines EDA, correlation, supervised ML, unsupervised learning, reinforcement learning, "
+        "forecasting, OLAP, paper comparison, and final conclusion. The strongest presentation angle is that housing "
+        "prices need multiple evidence sources, not one simple variable.",
+        icon=":material/dashboard:",
+    )
+    if evaluation is not None and not evaluation.empty:
+        metric = "R2" if "R2" in evaluation.columns else "F1"
+        best = evaluation.sort_values(metric, ascending=False).iloc[0]
+        st.info(
+            f"Best current evaluated model: `{best['Model']}` with `{metric} = {best[metric]:.3f}`.",
+            icon=":material/emoji_events:",
+        )
+    else:
+        st.info("Run the Evaluation page to add the best-model result to this summary.", icon=":material/emoji_events:")
+
+    st.markdown("#### Report Preview")
+    st.markdown(report_md)
+    st.download_button(
+        "Download executive report Markdown",
+        data=report_md.encode("utf-8"),
+        file_name="us_housing_executive_report.md",
+        mime="text/markdown",
+    )
+
+
+with tabs[15]:
+    st.subheader("Data Dictionary")
+    st.caption("A professional reference for every dataset column.")
+    dictionary = data_dictionary(df, date_col, target_default)
+    role_filter = st.multiselect(
+        "Filter by role",
+        dictionary["Role"].unique().tolist(),
+        default=dictionary["Role"].unique().tolist(),
+    )
+    filtered_dictionary = dictionary[dictionary["Role"].isin(role_filter)]
+    st.dataframe(filtered_dictionary.round({"Missing %": 2}), width="stretch", hide_index=True)
+    st.download_button(
+        "Download data dictionary CSV",
+        data=filtered_dictionary.to_csv(index=False).encode("utf-8"),
+        file_name="data_dictionary.csv",
+        mime="text/csv",
+    )
+
+
+with tabs[16]:
+    st.subheader("Scenario Simulator")
+    st.caption("Change one feature and estimate how the trained regression model reacts.")
+    if len(num_cols) < 2:
+        st.info("Scenario simulation needs at least two numeric columns.")
+    else:
+        sim_target = st.selectbox(
+            "Scenario target",
+            num_cols,
+            index=num_cols.index(target_default) if target_default in num_cols else 0,
+            key="sim_target",
+        )
+        sim_features = st.multiselect(
+            "Scenario model features",
+            [col for col in num_cols if col != sim_target],
+            default=[col for col in num_cols if col != sim_target][: min(8, max(len(num_cols) - 1, 0))],
+            key="sim_features",
+        )
+        if not sim_features:
+            st.info("Select at least one feature.")
+        else:
+            sim_model = st.selectbox(
+                "Scenario model",
+                ["Ridge", "RandomForest", "LinearRegression", "GradientBoosting", "DecisionTree", "KNN", "NeuralNetwork"],
+                index=0,
+                key="sim_model",
+            )
+            change_feature = st.selectbox("Feature to change", sim_features, key="sim_change_feature")
+            change_type = st.radio("Change type", ["Percent", "Absolute"], horizontal=True)
+            change_amount = st.number_input("Change amount", value=10.0)
+            scenario_df = df[[sim_target] + sim_features].dropna()
+            if len(scenario_df) < 20:
+                st.warning("Need at least 20 complete rows for a useful scenario model.")
+            elif st.button("Run scenario simulation", type="primary"):
+                pipeline = build_model_pipeline(sim_model, "Regression", True, "StandardScaler")
+                pipeline.fit(scenario_df[sim_features], scenario_df[sim_target])
+                baseline_row = scenario_df[sim_features].iloc[[-1]].copy()
+                scenario_row = baseline_row.copy()
+                original_value = float(scenario_row[change_feature].iloc[0])
+                if change_type == "Percent":
+                    scenario_row[change_feature] = scenario_row[change_feature] * (1 + change_amount / 100)
+                else:
+                    scenario_row[change_feature] = scenario_row[change_feature] + change_amount
+                baseline_pred = float(pipeline.predict(baseline_row)[0])
+                scenario_pred = float(pipeline.predict(scenario_row)[0])
+                delta = scenario_pred - baseline_pred
+                st.success(
+                    f"Scenario result: changing `{change_feature}` from `{original_value:,.2f}` to "
+                    f"`{float(scenario_row[change_feature].iloc[0]):,.2f}` changes predicted `{sim_target}` by `{delta:,.2f}`.",
+                    icon=":material/tune:",
+                )
+                scenario_result = pd.DataFrame(
+                    [
+                        {"Case": "Baseline", "Predicted target": baseline_pred},
+                        {"Case": "Scenario", "Predicted target": scenario_pred},
+                    ]
+                )
+                st.plotly_chart(
+                    px.bar(scenario_result, x="Case", y="Predicted target", color="Case", title="Scenario Impact"),
+                    width="stretch",
+                )
+                st.info(
+                    "Interpretation: this is a model-based what-if, not a causal proof. It is useful for explaining direction "
+                    "and sensitivity, especially when paired with theory and correlation.",
+                    icon=":material/lightbulb:",
+                )
+
+
+with tabs[17]:
+    st.subheader("Production Readiness")
+    st.caption("Big-company style checks: validation, drift monitoring, model card, and governance.")
+    evaluation = st.session_state.get("evaluation_results")
+    validation = validation_report(df, date_col, target_default)
+    drift = drift_report(df, date_col, num_cols)
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Validation failures", f"{int((validation['Status'] == 'Fail').sum())}")
+    c2.metric("Validation warnings", f"{int((validation['Status'] == 'Warning').sum())}")
+    c3.metric("Drift alerts", f"{int((drift['Status'] != 'Stable').sum()) if not drift.empty else 0}")
+
+    st.markdown("#### Data Validation Checks")
+    st.dataframe(validation, width="stretch", hide_index=True)
+    st.info(
+        "Production teams use validation checks before training or scoring. This protects the dashboard from empty data, missing targets, duplicate records, and invalid numeric values.",
+        icon=":material/verified:",
+    )
+
+    st.markdown("#### Drift Monitoring")
+    if drift.empty:
+        st.info("Not enough dated numeric data to calculate drift.")
+    else:
+        st.dataframe(drift.round({"Baseline mean": 3, "Current mean": 3, "Mean shift %": 2, "Z shift": 3}), width="stretch", hide_index=True)
+        st.plotly_chart(
+            px.bar(
+                drift.head(12).sort_values("Z shift"),
+                x="Z shift",
+                y="Feature",
+                color="Status",
+                orientation="h",
+                title="Largest Baseline-to-Current Feature Shifts",
+            ),
+            width="stretch",
+        )
+        st.warning(
+            "Drift means the recent data distribution differs from the early baseline. In a company, strong drift would trigger model review or retraining.",
+            icon=":material/monitoring:",
+        )
+
+    st.markdown("#### Model Card")
+    card = model_card_markdown(target_default, evaluation, validation, drift)
+    st.markdown(card)
+    st.download_button(
+        "Download model card Markdown",
+        data=card.encode("utf-8"),
+        file_name="model_card.md",
+        mime="text/markdown",
+    )
+
+    st.markdown("#### Governance Checklist")
+    governance = pd.DataFrame(
+        [
+            {"Practice": "Data validation", "Used here": "Yes", "Company purpose": "Catch bad data before reporting or scoring."},
+            {"Practice": "Drift monitoring", "Used here": "Yes", "Company purpose": "Detect when recent data changes from training/baseline data."},
+            {"Practice": "Model card", "Used here": "Yes", "Company purpose": "Document model use, metrics, limitations, and risks."},
+            {"Practice": "Explainability", "Used here": "Yes", "Company purpose": "Show which features influenced the model."},
+            {"Practice": "Scenario testing", "Used here": "Yes", "Company purpose": "Stress-test possible business changes."},
+            {"Practice": "Downloadable reports", "Used here": "Yes", "Company purpose": "Support audit, review, and project handoff."},
+        ]
+    )
+    st.dataframe(governance, width="stretch", hide_index=True)
+    st.success(
+        "Big-company takeaway: the project now includes not just analytics, but also validation, monitoring, explainability, scenario testing, and documentation.",
+        icon=":material/business_center:",
+    )
