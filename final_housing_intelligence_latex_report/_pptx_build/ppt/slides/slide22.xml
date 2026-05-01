@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
+  <p:cSld><p:spTree>
+    <p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>
+    <p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>
+    
+<p:sp>
+  <p:nvSpPr><p:cNvPr id="1" name="Text"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+  <p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="12191695" cy="6858000"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="F7FAFC"/></a:solidFill><a:ln><a:noFill/></a:ln></p:spPr>
+  <p:txBody>
+    <a:bodyPr wrap="square" anchor="mid"/>
+    <a:lstStyle/>
+    <a:p><a:pPr algn="l"/><a:r><a:rPr lang="en-US" sz="2000"><a:solidFill><a:srgbClr val="17324D"/></a:solidFill><a:latin typeface="Aptos"/></a:rPr><a:t></a:t></a:r></a:p>
+  </p:txBody>
+</p:sp>
+<p:sp>
+  <p:nvSpPr><p:cNvPr id="1" name="Text"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+  <p:spPr><a:xfrm><a:off x="502920" y="256032"/><a:ext cx="3200400" cy="292608"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/><a:ln><a:noFill/></a:ln></p:spPr>
+  <p:txBody>
+    <a:bodyPr wrap="square" anchor="mid"/>
+    <a:lstStyle/>
+    <a:p><a:pPr algn="l"/><a:r><a:rPr lang="en-US" sz="1000" b="1"><a:solidFill><a:srgbClr val="087F8C"/></a:solidFill><a:latin typeface="Aptos"/></a:rPr><a:t>US Housing Intelligence</a:t></a:r></a:p>
+  </p:txBody>
+</p:sp>
+<p:sp>
+  <p:nvSpPr><p:cNvPr id="1" name="Text"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+  <p:spPr><a:xfrm><a:off x="502920" y="566928"/><a:ext cx="11064240" cy="640080"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/><a:ln><a:noFill/></a:ln></p:spPr>
+  <p:txBody>
+    <a:bodyPr wrap="square" anchor="mid"/>
+    <a:lstStyle/>
+    <a:p><a:pPr algn="l"/><a:r><a:rPr lang="en-US" sz="2400" b="1"><a:solidFill><a:srgbClr val="17324D"/></a:solidFill><a:latin typeface="Aptos"/></a:rPr><a:t>Paper Review Message</a:t></a:r></a:p>
+  </p:txBody>
+</p:sp>
+<p:sp>
+  <p:nvSpPr><p:cNvPr id="1" name="Text"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+  <p:spPr><a:xfrm><a:off x="502920" y="1243584"/><a:ext cx="11064240" cy="27432"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="087F8C"/></a:solidFill><a:ln><a:noFill/></a:ln></p:spPr>
+  <p:txBody>
+    <a:bodyPr wrap="square" anchor="mid"/>
+    <a:lstStyle/>
+    <a:p><a:pPr algn="l"/><a:r><a:rPr lang="en-US" sz="2000"><a:solidFill><a:srgbClr val="17324D"/></a:solidFill><a:latin typeface="Aptos"/></a:rPr><a:t></a:t></a:r></a:p>
+  </p:txBody>
+</p:sp>
+<p:sp>
+  <p:nvSpPr><p:cNvPr id="2" name="Bullets"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+  <p:spPr><a:xfrm><a:off x="868680" y="1600200"/><a:ext cx="10241280" cy="4800600"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/><a:ln><a:noFill/></a:ln></p:spPr>
+  <p:txBody><a:bodyPr wrap="square"/><a:lstStyle/>
+    <a:p>
+      <a:pPr marL="342900" indent="-228600"><a:buChar char="•"/></a:pPr>
+      <a:r><a:rPr lang="en-US" sz="1800"><a:solidFill><a:srgbClr val="53657A"/></a:solidFill><a:latin typeface="Aptos"/></a:rPr><a:t>Housing prices are shaped by demand, financing conditions, supply, construction, income, and timing</a:t></a:r>
+    </a:p>
+    <a:p>
+      <a:pPr marL="342900" indent="-228600"><a:buChar char="•"/></a:pPr>
+      <a:r><a:rPr lang="en-US" sz="1800"><a:solidFill><a:srgbClr val="53657A"/></a:solidFill><a:latin typeface="Aptos"/></a:rPr><a:t>Higher mortgage rates reduce affordability, but prices may react slowly when supply is constrained</a:t></a:r>
+    </a:p>
+    <a:p>
+      <a:pPr marL="342900" indent="-228600"><a:buChar char="•"/></a:pPr>
+      <a:r><a:rPr lang="en-US" sz="1800"><a:solidFill><a:srgbClr val="53657A"/></a:solidFill><a:latin typeface="Aptos"/></a:rPr><a:t>The strongest conclusion is multi-factor interpretation</a:t></a:r>
+    </a:p></p:txBody>
+</p:sp>
+  </p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr>
+</p:sld>

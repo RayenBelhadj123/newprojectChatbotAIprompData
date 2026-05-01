@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
+  <p:cSld><p:spTree>
+    <p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>
+    <p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>
+    
+<p:sp>
+  <p:nvSpPr><p:cNvPr id="1" name="Text"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+  <p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="12191695" cy="6858000"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="F7FAFC"/></a:solidFill><a:ln><a:noFill/></a:ln></p:spPr>
+  <p:txBody>
+    <a:bodyPr wrap="square" anchor="mid"/>
+    <a:lstStyle/>
+    <a:p><a:pPr algn="l"/><a:r><a:rPr lang="en-US" sz="2000"><a:solidFill><a:srgbClr val="17324D"/></a:solidFill><a:latin typeface="Aptos"/></a:rPr><a:t></a:t></a:r></a:p>
+  </p:txBody>
+</p:sp>
+<p:sp>
+  <p:nvSpPr><p:cNvPr id="1" name="Text"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+  <p:spPr><a:xfrm><a:off x="502920" y="256032"/><a:ext cx="3200400" cy="292608"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/><a:ln><a:noFill/></a:ln></p:spPr>
+  <p:txBody>
+    <a:bodyPr wrap="square" anchor="mid"/>
+    <a:lstStyle/>
+    <a:p><a:pPr algn="l"/><a:r><a:rPr lang="en-US" sz="1000" b="1"><a:solidFill><a:srgbClr val="087F8C"/></a:solidFill><a:latin typeface="Aptos"/></a:rPr><a:t>US Housing Intelligence</a:t></a:r></a:p>
+  </p:txBody>
+</p:sp>
+<p:sp>
+  <p:nvSpPr><p:cNvPr id="1" name="Text"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+  <p:spPr><a:xfrm><a:off x="502920" y="566928"/><a:ext cx="11064240" cy="640080"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/><a:ln><a:noFill/></a:ln></p:spPr>
+  <p:txBody>
+    <a:bodyPr wrap="square" anchor="mid"/>
+    <a:lstStyle/>
+    <a:p><a:pPr algn="l"/><a:r><a:rPr lang="en-US" sz="2400" b="1"><a:solidFill><a:srgbClr val="17324D"/></a:solidFill><a:latin typeface="Aptos"/></a:rPr><a:t>Dataset Overview</a:t></a:r></a:p>
+  </p:txBody>
+</p:sp>
+<p:sp>
+  <p:nvSpPr><p:cNvPr id="1" name="Text"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+  <p:spPr><a:xfrm><a:off x="502920" y="1243584"/><a:ext cx="11064240" cy="27432"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="087F8C"/></a:solidFill><a:ln><a:noFill/></a:ln></p:spPr>
+  <p:txBody>
+    <a:bodyPr wrap="square" anchor="mid"/>
+    <a:lstStyle/>
+    <a:p><a:pPr algn="l"/><a:r><a:rPr lang="en-US" sz="2000"><a:solidFill><a:srgbClr val="17324D"/></a:solidFill><a:latin typeface="Aptos"/></a:rPr><a:t></a:t></a:r></a:p>
+  </p:txBody>
+</p:sp>
+<p:sp>
+  <p:nvSpPr><p:cNvPr id="1" name="Text"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+  <p:spPr><a:xfrm><a:off x="822960" y="1737360"/><a:ext cx="2926080" cy="1188720"/></a:xfrm><a:prstGeom prst="roundRect"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="087F8C"/></a:solidFill><a:ln w="9525"><a:solidFill><a:srgbClr val="087F8C"/></a:solidFill></a:ln></p:spPr>
+  <p:txBody>
+    <a:bodyPr wrap="square" anchor="mid"/>
+    <a:lstStyle/>
+    <a:p><a:pPr algn="ctr"/><a:r><a:rPr lang="en-US" sz="3800" b="1"><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill><a:latin typeface="Aptos"/></a:rPr><a:t>242</a:t></a:r></a:p>
+  </p:txBody>
+</p:sp>
+<p:sp>
+  <p:nvSpPr><p:cNvPr id="1" name="Text"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+  <p:spPr><a:xfrm><a:off x="822960" y="2880360"/><a:ext cx="2926080" cy="411480"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/><a:ln><a:noFill/></a:ln></p:spPr>
+  <p:txBody>
+    <a:bodyPr wrap="square" anchor="mid"/>
+    <a:lstStyle/>
+    <a:p><a:pPr algn="l"/><a:r><a:rPr lang="en-US" sz="1300" b="1"><a:solidFill><a:srgbClr val="17324D"/></a:solidFill><a:latin typeface="Aptos"/></a:rPr><a:t>Monthly observations</a:t></a:r></a:p>
+  </p:txBody>
+</p:sp>
+<p:sp>
+  <p:nvSpPr><p:cNvPr id="1" name="Text"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+  <p:spPr><a:xfrm><a:off x="4617720" y="1737360"/><a:ext cx="2926080" cy="1188720"/></a:xfrm><a:prstGeom prst="roundRect"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="C35F1D"/></a:solidFill><a:ln w="9525"><a:solidFill><a:srgbClr val="C35F1D"/></a:solidFill></a:ln></p:spPr>
+  <p:txBody>
+    <a:bodyPr wrap="square" anchor="mid"/>
+    <a:lstStyle/>
+    <a:p><a:pPr algn="ctr"/><a:r><a:rPr lang="en-US" sz="3800" b="1"><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill><a:latin typeface="Aptos"/></a:rPr><a:t>27</a:t></a:r></a:p>
+  </p:txBody>
+</p:sp>
+<p:sp>
+  <p:nvSpPr><p:cNvPr id="1" name="Text"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+  <p:spPr><a:xfrm><a:off x="4617720" y="2880360"/><a:ext cx="2926080" cy="411480"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/><a:ln><a:noFill/></a:ln></p:spPr>
+  <p:txBody>
+    <a:bodyPr wrap="square" anchor="mid"/>
+    <a:lstStyle/>
+    <a:p><a:pPr algn="l"/><a:r><a:rPr lang="en-US" sz="1300" b="1"><a:solidFill><a:srgbClr val="17324D"/></a:solidFill><a:latin typeface="Aptos"/></a:rPr><a:t>Dataset columns</a:t></a:r></a:p>
+  </p:txBody>
+</p:sp>
+<p:sp>
+  <p:nvSpPr><p:cNvPr id="1" name="Text"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+  <p:spPr><a:xfrm><a:off x="8412480" y="1737360"/><a:ext cx="2926080" cy="1188720"/></a:xfrm><a:prstGeom prst="roundRect"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="17324D"/></a:solidFill><a:ln w="9525"><a:solidFill><a:srgbClr val="17324D"/></a:solidFill></a:ln></p:spPr>
+  <p:txBody>
+    <a:bodyPr wrap="square" anchor="mid"/>
+    <a:lstStyle/>
+    <a:p><a:pPr algn="ctr"/><a:r><a:rPr lang="en-US" sz="3000" b="1"><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill><a:latin typeface="Aptos"/></a:rPr><a:t>2004-2024</a:t></a:r></a:p>
+  </p:txBody>
+</p:sp>
+<p:sp>
+  <p:nvSpPr><p:cNvPr id="1" name="Text"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+  <p:spPr><a:xfrm><a:off x="8412480" y="2880360"/><a:ext cx="2926080" cy="411480"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/><a:ln><a:noFill/></a:ln></p:spPr>
+  <p:txBody>
+    <a:bodyPr wrap="square" anchor="mid"/>
+    <a:lstStyle/>
+    <a:p><a:pPr algn="l"/><a:r><a:rPr lang="en-US" sz="1300" b="1"><a:solidFill><a:srgbClr val="17324D"/></a:solidFill><a:latin typeface="Aptos"/></a:rPr><a:t>Historical period</a:t></a:r></a:p>
+  </p:txBody>
+</p:sp>
+<p:sp>
+  <p:nvSpPr><p:cNvPr id="2" name="Bullets"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+  <p:spPr><a:xfrm><a:off x="1005840" y="3886200"/><a:ext cx="10058400" cy="2011680"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/><a:ln><a:noFill/></a:ln></p:spPr>
+  <p:txBody><a:bodyPr wrap="square"/><a:lstStyle/>
+    <a:p>
+      <a:pPr marL="342900" indent="-228600"><a:buChar char="•"/></a:pPr>
+      <a:r><a:rPr lang="en-US" sz="1600"><a:solidFill><a:srgbClr val="53657A"/></a:solidFill><a:latin typeface="Aptos"/></a:rPr><a:t>Target variable: Home_Price_Index</a:t></a:r>
+    </a:p>
+    <a:p>
+      <a:pPr marL="342900" indent="-228600"><a:buChar char="•"/></a:pPr>
+      <a:r><a:rPr lang="en-US" sz="1600"><a:solidFill><a:srgbClr val="53657A"/></a:solidFill><a:latin typeface="Aptos"/></a:rPr><a:t>Main variables: mortgage rate, interest rate, unemployment, inflation, permits, income, population, and sentiment</a:t></a:r>
+    </a:p>
+    <a:p>
+      <a:pPr marL="342900" indent="-228600"><a:buChar char="•"/></a:pPr>
+      <a:r><a:rPr lang="en-US" sz="1600"><a:solidFill><a:srgbClr val="53657A"/></a:solidFill><a:latin typeface="Aptos"/></a:rPr><a:t>The data supports both prediction and interpretation</a:t></a:r>
+    </a:p></p:txBody>
+</p:sp>
+  </p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr>
+</p:sld>

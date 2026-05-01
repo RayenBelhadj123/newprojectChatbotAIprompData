@@ -1,0 +1,823 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>US Housing Intelligence Presentation</title>
+  <style>
+    :root {
+      --navy: #07111f;
+      --navy-2: #0d1e33;
+      --panel: #102136;
+      --panel-2: #172a43;
+      --teal: #1bbfa9;
+      --teal-2: #0d9484;
+      --amber: #f0a832;
+      --sky: #4cb8e0;
+      --rose: #e8637a;
+      --text: #e8f1fb;
+      --muted: #7fa6c8;
+      --ink: #1e293b;
+      --slate: #475569;
+      --line: #dbe5ef;
+      --light: #f8fafc;
+      --white: #ffffff;
+      --shadow: 0 22px 60px rgba(7, 17, 31, 0.24);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: #0a1422;
+      color: var(--ink);
+      font-family: Calibri, Aptos, Arial, sans-serif;
+    }
+
+    .deck {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 26px;
+    }
+
+    .slide {
+      display: none;
+      width: min(1280px, 96vw);
+      aspect-ratio: 16 / 9;
+      position: relative;
+      overflow: hidden;
+      background: var(--light);
+      box-shadow: var(--shadow);
+    }
+
+    .slide.active { display: block; }
+
+    .dark {
+      background:
+        linear-gradient(90deg, rgba(27, 191, 169, 0.14), transparent 38%),
+        radial-gradient(circle at 84% 22%, rgba(76, 184, 224, 0.17), transparent 28%),
+        var(--navy);
+      color: var(--text);
+    }
+
+    .top-strip {
+      position: absolute;
+      inset: 0 0 auto;
+      height: 18%;
+      background: var(--navy-2);
+      border-top: 8px solid var(--teal);
+    }
+
+    .accent-left {
+      position: absolute;
+      left: 0;
+      top: 18%;
+      width: 20px;
+      height: 60%;
+      background: var(--teal);
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: 34px;
+      padding: 0 18px;
+      color: var(--teal);
+      border: 1px solid rgba(27, 191, 169, 0.55);
+      background: rgba(27, 191, 169, 0.12);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+    }
+
+    .content {
+      position: absolute;
+      inset: 36px 48px;
+      z-index: 2;
+    }
+
+    h1, h2, h3, p { margin: 0; }
+
+    h1 {
+      font-size: clamp(3.2rem, 5.8vw, 4.9rem);
+      line-height: 0.95;
+      letter-spacing: -0.04em;
+    }
+
+    h2 {
+      margin-top: 18px;
+      color: var(--ink);
+      font-size: 2.25rem;
+      line-height: 1.02;
+    }
+
+    .dark h2 { color: var(--text); }
+
+    .rule {
+      height: 5px;
+      width: 100%;
+      margin-top: 18px;
+      background: var(--teal);
+    }
+
+    .subtitle {
+      margin-top: 18px;
+      max-width: 880px;
+      color: var(--muted);
+      font-size: 1.22rem;
+      line-height: 1.35;
+    }
+
+    .title-meta {
+      color: var(--muted);
+      font-size: 1.05rem;
+      line-height: 1.6;
+    }
+
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 18px;
+      position: absolute;
+      left: 48px;
+      right: 48px;
+      bottom: 34px;
+    }
+
+    .kpi, .card, .panel {
+      background: var(--white);
+      border: 1px solid var(--line);
+      box-shadow: 0 14px 34px rgba(15, 30, 48, 0.12);
+    }
+
+    .dark .kpi, .dark .card, .dark .panel {
+      background: var(--panel-2);
+      border-color: #3d5a73;
+    }
+
+    .kpi {
+      min-height: 92px;
+      padding: 14px;
+      text-align: center;
+    }
+
+    .kpi strong {
+      display: block;
+      color: var(--amber);
+      font-size: 2.05rem;
+      line-height: 1;
+    }
+
+    .kpi span {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 18px;
+      margin-top: 26px;
+    }
+
+    .agenda {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px 24px;
+      margin-top: 26px;
+    }
+
+    .agenda-item {
+      display: grid;
+      grid-template-columns: 70px 1fr;
+      min-height: 74px;
+      background: #fff;
+      border: 1px solid var(--line);
+    }
+
+    .agenda-num {
+      display: grid;
+      place-items: center;
+      color: var(--teal);
+      font-weight: 900;
+      font-size: 1.2rem;
+      border-left: 6px solid var(--teal);
+    }
+
+    .agenda-item:nth-child(even) .agenda-num {
+      color: var(--amber);
+      border-left-color: var(--amber);
+    }
+
+    .agenda-copy { padding: 12px 14px; }
+    .agenda-copy strong { display: block; color: var(--ink); }
+    .agenda-copy span { display: block; margin-top: 4px; color: var(--slate); font-size: 0.92rem; }
+
+    .bullets {
+      margin: 30px 0 0;
+      padding: 30px 40px;
+      list-style: none;
+      font-size: 1.45rem;
+      line-height: 1.32;
+    }
+
+    .bullets li {
+      position: relative;
+      padding-left: 34px;
+      color: var(--slate);
+      margin-bottom: 18px;
+    }
+
+    .dark .bullets li { color: var(--muted); }
+
+    .bullets li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0.55em;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--teal);
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      margin-top: 54px;
+    }
+
+    .metric {
+      padding: 30px;
+      text-align: center;
+      color: #fff;
+      background: var(--teal);
+      min-height: 150px;
+      display: grid;
+      place-items: center;
+    }
+
+    .metric:nth-child(2) { background: var(--amber); }
+    .metric:nth-child(3) { background: var(--navy-2); }
+    .metric strong { font-size: 3.1rem; line-height: 1; }
+    .metric span { display: block; margin-top: 10px; font-weight: 700; }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+      margin-top: 28px;
+    }
+
+    .card {
+      padding: 20px;
+      min-height: 160px;
+      border-top: 6px solid var(--teal);
+    }
+
+    .card:nth-child(2n) { border-top-color: var(--amber); }
+    .card h3 { color: var(--ink); font-size: 1.2rem; }
+    .dark .card h3 { color: var(--text); }
+    .card p { margin-top: 10px; color: var(--slate); line-height: 1.35; }
+    .dark .card p { color: var(--muted); }
+
+    .visual-layout {
+      display: grid;
+      grid-template-columns: 1.35fr 0.9fr;
+      gap: 28px;
+      align-items: stretch;
+      margin-top: 26px;
+    }
+
+    .visual-layout.reverse {
+      grid-template-columns: 0.9fr 1.35fr;
+    }
+
+    .visual {
+      background: #fff;
+      border: 1px solid var(--line);
+      padding: 10px;
+      box-shadow: 0 15px 36px rgba(15, 30, 48, 0.13);
+      display: grid;
+      place-items: center;
+      min-height: 400px;
+    }
+
+    .visual img {
+      width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    .notes {
+      padding: 24px;
+      background: var(--panel-2);
+      border: 1px solid #3d5a73;
+      color: var(--muted);
+      font-size: 1.02rem;
+      line-height: 1.42;
+    }
+
+    .notes strong {
+      display: block;
+      margin-bottom: 14px;
+      color: var(--teal);
+      font-size: 1.25rem;
+    }
+
+    .light-notes {
+      background: #fff;
+      border-color: var(--line);
+      color: var(--slate);
+    }
+
+    .bar-list {
+      margin-top: 25px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .bar-row {
+      display: grid;
+      grid-template-columns: 230px 1fr 70px;
+      gap: 14px;
+      align-items: center;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .bar-track {
+      height: 14px;
+      background: var(--panel-2);
+      overflow: hidden;
+    }
+
+    .bar-fill { height: 100%; background: var(--teal); }
+    .bar-row:nth-child(2n) .bar-fill { background: var(--amber); }
+
+    .footer {
+      position: absolute;
+      left: 48px;
+      right: 48px;
+      bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .controls {
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      z-index: 10;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(7, 17, 31, 0.86);
+      backdrop-filter: blur(10px);
+      color: #fff;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.28);
+    }
+
+    .controls button {
+      border: 0;
+      background: var(--teal);
+      color: #fff;
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .controls span { min-width: 72px; text-align: center; font-weight: 700; }
+
+    @media print {
+      body { background: #fff; }
+      .deck { display: block; padding: 0; }
+      .slide {
+        display: block !important;
+        width: 100vw;
+        height: 100vh;
+        box-shadow: none;
+        page-break-after: always;
+      }
+      .controls { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="deck">
+    <section class="slide dark active">
+      <div class="top-strip"></div>
+      <div class="accent-left"></div>
+      <div class="content">
+        <p class="title-meta">IT Business School · Tunisia<br>Data Mining & Machine Learning · 2025-2026<br><em>Supervisor: Kaouether Ben Ali</em></p>
+        <h1 style="margin-top:72px;">US Housing Market<br><span style="color:var(--teal);">Analysis and Prediction</span></h1>
+        <p class="subtitle">Using Data Mining, Machine Learning, OLAP, diagnostics, and Streamlit dashboard evidence.</p>
+        <p style="margin-top:28px;color:var(--text);font-weight:800;">Ayoub Naouech · Rayen Belhadj</p>
+      </div>
+      <div class="kpi-row">
+        <div class="kpi"><strong>242</strong><span>Observations</span></div>
+        <div class="kpi"><strong>27</strong><span>Features</span></div>
+        <div class="kpi"><strong>20yr</strong><span>Timespan</span></div>
+        <div class="kpi"><strong>0.999</strong><span>Best R²</span></div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="content">
+        <span class="chip">Agenda</span>
+        <h2>Presentation Outline</h2>
+        <div class="agenda">
+          <div class="agenda-item"><div class="agenda-num">01</div><div class="agenda-copy"><strong>Project Motivation</strong><span>Why housing markets matter</span></div></div>
+          <div class="agenda-item"><div class="agenda-num">02</div><div class="agenda-copy"><strong>Dataset & Features</strong><span>242 rows, 27 variables</span></div></div>
+          <div class="agenda-item"><div class="agenda-num">03</div><div class="agenda-copy"><strong>CRISP-DM</strong><span>Full data science workflow</span></div></div>
+          <div class="agenda-item"><div class="agenda-num">04</div><div class="agenda-copy"><strong>Streamlit App</strong><span>Dashboard screenshots</span></div></div>
+          <div class="agenda-item"><div class="agenda-num">05</div><div class="agenda-copy"><strong>Model Evaluation</strong><span>Correct metrics and charts</span></div></div>
+          <div class="agenda-item"><div class="agenda-num">06</div><div class="agenda-copy"><strong>Diagnostics</strong><span>Train/test gap interpretation</span></div></div>
+          <div class="agenda-item"><div class="agenda-num">07</div><div class="agenda-copy"><strong>OLAP Results</strong><span>Period comparison</span></div></div>
+          <div class="agenda-item"><div class="agenda-num">08</div><div class="agenda-copy"><strong>Paper Review</strong><span>Theory and market context</span></div></div>
+          <div class="agenda-item"><div class="agenda-num">09</div><div class="agenda-copy"><strong>Business Impact</strong><span>Decision support value</span></div></div>
+          <div class="agenda-item"><div class="agenda-num">10</div><div class="agenda-copy"><strong>Conclusion</strong><span>Final defense message</span></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide dark">
+      <div class="content">
+        <span class="chip">Motivation</span>
+        <h2>Why Housing Markets?</h2>
+        <div class="panel" style="margin-top:28px;padding:28px;color:var(--text);font-size:1.28rem;line-height:1.38;">
+          “The U.S. housing market is a cornerstone of national economic health, sensitive to inflation, unemployment, mortgage conditions, interest-rate policy, supply, and market timing.”
+        </div>
+        <div class="cards">
+          <article class="card"><h3>Market Complexity</h3><p>Housing prices react to several interacting macroeconomic and financial variables.</p></article>
+          <article class="card"><h3>Stakeholder Need</h3><p>Analysts, students, institutions, and policymakers need accessible evidence.</p></article>
+          <article class="card"><h3>ML Opportunity</h3><p>Machine learning and diagnostics help test predictive value and model risk.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="content">
+        <span class="chip">Problem</span>
+        <h2>Research Question</h2>
+        <ul class="bullets card">
+          <li>How can data mining and machine learning analyze and predict U.S. housing-market trends using macroeconomic indicators?</li>
+          <li>The analytical challenge is time dependence, lagged behavior, and interacting variables.</li>
+          <li>The communication challenge is making model evidence clear for non-technical users.</li>
+          <li>The product challenge is transforming the analysis into a usable Streamlit dashboard.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="content">
+        <span class="chip">Objectives</span>
+        <h2>Project Objectives</h2>
+        <div class="cards">
+          <article class="card"><h3>Analyze</h3><p>Study historical Home Price Index movement and macroeconomic context.</p></article>
+          <article class="card"><h3>Predict</h3><p>Train and compare models using a chronological evaluation split.</p></article>
+          <article class="card"><h3>Explain</h3><p>Use correlations, diagnostics, OLAP, and paper review for interpretation.</p></article>
+          <article class="card"><h3>Deploy</h3><p>Build a Streamlit intelligence app with visual pages and exports.</p></article>
+          <article class="card"><h3>Govern</h3><p>Add production-readiness, model-card, and registry-style modules.</p></article>
+          <article class="card"><h3>Communicate</h3><p>Create report, poster, and presentation-ready graphics.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="content">
+        <span class="chip">Dataset</span>
+        <h2>Dataset Overview</h2>
+        <div class="metrics">
+          <div class="metric"><div><strong>242</strong><span>Monthly observations</span></div></div>
+          <div class="metric"><div><strong>27</strong><span>Columns</span></div></div>
+          <div class="metric"><div><strong>2004-2024</strong><span>Historical period</span></div></div>
+        </div>
+        <ul class="bullets" style="font-size:1.15rem;margin-top:30px;">
+          <li>Target variable: <strong>Home_Price_Index</strong>.</li>
+          <li>Main variables: mortgage rate, interest rate, unemployment, inflation, permits, income, population, and sentiment.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="content">
+        <span class="chip">Preparation</span>
+        <h2>Data Preparation</h2>
+        <div class="cards">
+          <article class="card"><h3>Date Parsing</h3><p>Convert date column and sort observations chronologically.</p></article>
+          <article class="card"><h3>Numeric Conversion</h3><p>Ensure modeling columns are usable numeric variables.</p></article>
+          <article class="card"><h3>Quality Checks</h3><p>Check missing values, duplicates, and row preservation.</p></article>
+          <article class="card"><h3>Period Labels</h3><p>Create Pre-Trump, Trump, and Biden administration groups.</p></article>
+          <article class="card"><h3>Lag Features</h3><p>Add HPI_lag1, HPI_lag3, rolling features, and percentage changes.</p></article>
+          <article class="card"><h3>Ratios</h3><p>Build affordability and macro-pressure ratios for interpretation.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="content">
+        <span class="chip">Methodology</span>
+        <h2>CRISP-DM Workflow</h2>
+        <div class="visual-layout">
+          <div class="visual"><img src="final_housing_intelligence_latex_report/figures/project_pipeline.png" alt="Project pipeline"></div>
+          <div class="notes light-notes">
+            <strong>Six phases</strong>
+            Business understanding, data understanding, data preparation, modeling, evaluation, and deployment.
+            <br><br>
+            The dashboard follows this logic from raw CSV to model interpretation and exportable results.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide dark">
+      <div class="content">
+        <span class="chip">Deployment</span>
+        <h2>Streamlit Intelligence Platform</h2>
+        <div class="visual-layout">
+          <div class="visual"><img src="final_housing_intelligence_latex_report/app_screenshots/app_home.png" alt="Streamlit app home"></div>
+          <div class="notes">
+            <strong>Dashboard evidence</strong>
+            The app organizes the project into pages for overview, exploration, data quality, machine learning, evaluation, OLAP, paper review, production readiness, and business impact.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide dark">
+      <div class="content">
+        <span class="chip">ML Lab</span>
+        <h2>Interactive Modeling Page</h2>
+        <div class="visual"><img src="final_housing_intelligence_latex_report/app_screenshots/app_modeling.png" alt="ML Lab screenshot"></div>
+      </div>
+    </section>
+
+    <section class="slide dark">
+      <div class="content">
+        <span class="chip">Evaluation</span>
+        <h2>Evaluation Page In The App</h2>
+        <div class="visual"><img src="final_housing_intelligence_latex_report/app_screenshots/app_evaluation.png" alt="Evaluation screenshot"></div>
+      </div>
+    </section>
+
+    <section class="slide dark">
+      <div class="content">
+        <span class="chip">OLAP</span>
+        <h2>OLAP And Export Page</h2>
+        <div class="visual"><img src="final_housing_intelligence_latex_report/app_screenshots/app_olap.png" alt="OLAP screenshot"></div>
+      </div>
+    </section>
+
+    <section class="slide dark">
+      <div class="content">
+        <span class="chip">Paper Review</span>
+        <h2>Research Comparison Page</h2>
+        <div class="visual-layout">
+          <div class="visual"><img src="final_housing_intelligence_latex_report/app_screenshots/app_paper_review.png" alt="Paper review screenshot"></div>
+          <div class="notes">
+            <strong>Academic bridge</strong>
+            The page connects dashboard evidence with housing theory, rate pressure, current-market context, and balanced interpretation.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide dark">
+      <div class="content">
+        <span class="chip">Governance</span>
+        <h2>Production Readiness</h2>
+        <div class="visual"><img src="final_housing_intelligence_latex_report/app_screenshots/app_governance.png" alt="Governance screenshot"></div>
+      </div>
+    </section>
+
+    <section class="slide dark">
+      <div class="content">
+        <span class="chip">Correlation</span>
+        <h2>Correlation & Feature Signal</h2>
+        <div class="visual-layout">
+          <div class="visual"><img src="final_housing_intelligence_latex_report/figures/correlation_results.png" alt="Correlation chart"></div>
+          <div class="notes">
+            <strong>Correct signal</strong>
+            Strongest relationships: smoothed HPI, HPI_lag1, HPI_lag3, and Median_Income.
+            <div class="bar-list">
+              <div class="bar-row"><span>HPI Smoothed</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><span>1.00</span></div>
+              <div class="bar-row"><span>HPI lag1</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><span>1.00</span></div>
+              <div class="bar-row"><span>Median Income</span><div class="bar-track"><div class="bar-fill" style="width:88%"></div></div><span>0.88</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="content">
+        <span class="chip">Model Comparison</span>
+        <h2>Generated Regression Evaluation</h2>
+        <div class="visual-layout">
+          <div class="visual"><img src="final_housing_intelligence_latex_report/figures/model_evaluation_results.png" alt="Model evaluation chart"></div>
+          <div class="notes light-notes">
+            <strong>Winner: Linear Regression</strong>
+            Best generated test result using chronological 80/20 split.
+            <div class="cards" style="grid-template-columns:1fr;margin-top:18px;">
+              <article class="card"><h3>R² = 0.999</h3><p>Explained variance on the chronological test set.</p></article>
+              <article class="card"><h3>MAE = 0.661</h3><p>Average absolute prediction error.</p></article>
+              <article class="card"><h3>RMSE = 0.797</h3><p>Large-error-sensitive error metric.</p></article>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="content">
+        <span class="chip">Metrics</span>
+        <h2>Correct Regression Metrics</h2>
+        <div class="cards">
+          <article class="card"><h3>Linear Regression</h3><p>R² 0.999 · MAE 0.661 · RMSE 0.797 · CV R² 0.994</p></article>
+          <article class="card"><h3>Ridge Regression</h3><p>R² 0.984 · MAE 3.715 · RMSE 4.162</p></article>
+          <article class="card"><h3>Gradient Boosting</h3><p>R² -4.148 · MAE 65.816 · RMSE 73.669</p></article>
+          <article class="card"><h3>Decision Tree</h3><p>R² -4.159 · MAE 66.218 · RMSE 73.750</p></article>
+          <article class="card"><h3>Random Forest</h3><p>R² -4.494 · MAE 69.077 · RMSE 76.105</p></article>
+          <article class="card"><h3>Lesson</h3><p>Tree models struggled to extrapolate the final high-price test period.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide dark">
+      <div class="content">
+        <span class="chip">Diagnostics</span>
+        <h2>Fit Diagnostics</h2>
+        <div class="visual-layout">
+          <div class="visual"><img src="final_housing_intelligence_latex_report/figures/fit_diagnostics_results.png" alt="Fit diagnostics chart"></div>
+          <div class="notes">
+            <strong>Why diagnostics matter</strong>
+            Train/test gaps show whether a model generalizes beyond the training period. The final defense should explain why tree models perform weakly on chronological extrapolation.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide dark">
+      <div class="content">
+        <span class="chip">Prediction</span>
+        <h2>Actual Versus Predicted</h2>
+        <div class="visual-layout">
+          <div class="visual"><img src="final_housing_intelligence_latex_report/figures/actual_vs_predicted_results.png" alt="Actual versus predicted chart"></div>
+          <div class="notes">
+            <strong>Interpretation</strong>
+            The best model follows the test period closely because lagged and smoothed price features preserve the rising trend.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide dark">
+      <div class="content">
+        <span class="chip">OLAP Analytics</span>
+        <h2>OLAP Period Results</h2>
+        <div class="visual-layout">
+          <div class="visual"><img src="final_housing_intelligence_latex_report/figures/olap_period_results.png" alt="OLAP period results"></div>
+          <div class="notes">
+            <strong>Correct OLAP values</strong>
+            Pre-Trump avg HPI: 161.5<br>
+            Trump avg HPI: 206.3<br>
+            Biden avg HPI: 291.8<br><br>
+            Biden also has the highest average mortgage-rate pressure at 5.25%.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide dark">
+      <div class="content">
+        <span class="chip">Theory Validation</span>
+        <h2>Paper Review Message</h2>
+        <div class="cards">
+          <article class="card"><h3>Price Momentum</h3><p>Lagged and smoothed HPI strongly support market persistence.</p></article>
+          <article class="card"><h3>Income Demand</h3><p>Median income remains an important context variable with r = 0.88.</p></article>
+          <article class="card"><h3>Rate Pressure</h3><p>Mortgage-rate pressure is mixed because price response can lag.</p></article>
+          <article class="card"><h3>Supply Timing</h3><p>Prices can remain elevated when supply and market inertia matter.</p></article>
+          <article class="card"><h3>Balanced Claim</h3><p>The strongest conclusion is multi-factor interpretation.</p></article>
+          <article class="card"><h3>Dashboard Value</h3><p>The app combines theory, models, OLAP, diagnostics, and reporting.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="content">
+        <span class="chip">Business Impact</span>
+        <h2>Business Value & Stakeholders</h2>
+        <div class="cards">
+          <article class="card"><h3>Analysts</h3><p>Understand which indicators move with housing prices.</p></article>
+          <article class="card"><h3>Students</h3><p>Learn EDA, ML, diagnostics, OLAP, and dashboard deployment.</p></article>
+          <article class="card"><h3>Institutions</h3><p>Use model comparison and period summaries for risk discussion.</p></article>
+          <article class="card"><h3>Decision Support</h3><p>Compare scenarios, periods, model behavior, and market context.</p></article>
+          <article class="card"><h3>Communication</h3><p>Use screenshots and generated figures in reports and defense slides.</p></article>
+          <article class="card"><h3>Governance</h3><p>Production readiness and model-card ideas improve project maturity.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide dark">
+      <div class="content">
+        <span class="chip">Forecast & Scenario</span>
+        <h2>Forecasting As Decision Support</h2>
+        <div class="visual-layout">
+          <div class="visual"><img src="final_housing_intelligence_latex_report/figures/actual_vs_predicted_results.png" alt="Forecast evidence chart"></div>
+          <div class="notes">
+            <strong>How to present it</strong>
+            Forecasting is used as a scenario-support tool, not as a guaranteed future truth.
+            <br><br>
+            The correct defense message is: use forecasts together with evaluation metrics, OLAP period summaries, diagnostics, and paper-review theory.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="content">
+        <span class="chip">Future Work</span>
+        <h2>Limitations & Future Directions</h2>
+        <div class="grid-2">
+          <ul class="bullets card" style="font-size:1.05rem;margin:0;">
+            <li>National-level data hides regional differences.</li>
+            <li>Forecasting is educational, not financial advice.</li>
+            <li>Correlation and ML prediction do not prove causality.</li>
+            <li>The static dataset needs manual refresh.</li>
+          </ul>
+          <ul class="bullets card" style="font-size:1.05rem;margin:0;">
+            <li>Add regional data from city/state sources.</li>
+            <li>Connect live APIs such as FRED, Census, or market feeds.</li>
+            <li>Add SHAP explainability and stronger chatbot grounding.</li>
+            <li>Deploy with authentication, monitoring, and drift alerts.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide dark">
+      <div class="top-strip"></div>
+      <div class="content">
+        <span class="chip">Conclusion</span>
+        <h2 style="font-size:2.8rem;">Final Conclusion</h2>
+        <div class="panel" style="margin-top:34px;padding:28px;color:var(--text);font-size:1.22rem;line-height:1.42;">
+          “The U.S. housing market is best explained by combining price momentum, income-demand context, model diagnostics, OLAP segmentation, and paper-review theory.”
+        </div>
+      </div>
+      <div class="kpi-row">
+        <div class="kpi"><strong>R² 0.999</strong><span>Best model: LinearReg</span></div>
+        <div class="kpi"><strong>0.797</strong><span>Best RMSE</span></div>
+        <div class="kpi"><strong>291.8</strong><span>Biden avg HPI</span></div>
+        <div class="kpi"><strong>22</strong><span>Dashboard pages</span></div>
+      </div>
+    </section>
+  </main>
+
+  <nav class="controls" aria-label="Presentation controls">
+    <button id="prev" type="button">Prev</button>
+    <span id="counter">1 / 25</span>
+    <button id="next" type="button">Next</button>
+  </nav>
+
+  <script>
+    const slides = [...document.querySelectorAll(".slide")];
+    const counter = document.getElementById("counter");
+    let index = 0;
+
+    function showSlide(nextIndex) {
+      slides[index].classList.remove("active");
+      index = (nextIndex + slides.length) % slides.length;
+      slides[index].classList.add("active");
+      counter.textContent = `${index + 1} / ${slides.length}`;
+    }
+
+    document.getElementById("prev").addEventListener("click", () => showSlide(index - 1));
+    document.getElementById("next").addEventListener("click", () => showSlide(index + 1));
+
+    window.addEventListener("keydown", (event) => {
+      if (["ArrowRight", "PageDown", " "].includes(event.key)) showSlide(index + 1);
+      if (["ArrowLeft", "PageUp"].includes(event.key)) showSlide(index - 1);
+      if (event.key === "Home") showSlide(0);
+      if (event.key === "End") showSlide(slides.length - 1);
+    });
+  </script>
+</body>
+</html>
