@@ -18,41 +18,23 @@ This supports the idea that contextual or policy-related factors may influence t
 
 \section{Model Performance}
 
-Two machine learning models were compared in the project:
-Ridge Regression and Random Forest.
+The final application compares several regression models under the same chronological train-test logic.
+This is more reliable than presenting only one model, because the housing dataset contains strong temporal structure and engineered variables such as lagged values and rolling indicators.
+The reproducible evaluation generated from the included CSV is presented later in this chapter in Table~\ref{tab:generated_model_metrics}.
 
-Ridge Regression produced stable and interpretable results.
-It performed well as a baseline model and remained useful for understanding the direction and importance of several relationships.
-
-Random Forest generally achieved stronger predictive results.
-This can be explained by its ability to capture non-linear interactions and more complex patterns in the data.
-
-\begin{table}[H]
-\centering
-\begin{tabular}{lccc}
-\toprule
-Model & MAE & RMSE & \(R^2\) \\
-\midrule
-Ridge Regression & 2.50 & 3.20 & 0.85 \\
-Random Forest & 1.80 & 2.40 & 0.92 \\
-\bottomrule
-\end{tabular}
-\caption{Illustrative comparison of model performance.}
-\label{tab:model_comp}
-\end{table}
-
-These results indicate that both models are useful, but they do not serve exactly the same purpose.
-Ridge Regression is stronger when interpretability is a priority.
-Random Forest is stronger when predictive accuracy is the main objective.
+In the generated run, Linear Regression obtains the strongest test result because the dataset includes lagged and smoothed price variables that preserve the main direction of the trend.
+This does not mean that Linear Regression is always the best model for housing analysis.
+It means that, for this specific feature set, a transparent trend-following model generalizes better to the final chronological period than tree-based models.
+The Random Forest and Gradient Boosting results remain useful diagnostic evidence because they show the difficulty of extrapolating a rising market when the test period moves outside the range learned in training.
 
 \section{Feature Importance and Interpretation}
 
-One advantage of Random Forest is that it can estimate feature importance.
-In our context, the most influential variables are expected to include interest rates, inflation, unemployment, and lagged target values.
+The correlation and diagnostic graphics show that lagged and smoothed price indicators are the strongest predictors in the current dataset.
+This is coherent with the housing-market context because home prices usually evolve gradually rather than changing abruptly from one month to the next.
+Macroeconomic indicators such as mortgage rates, interest rates, inflation, unemployment, income, building permits, and consumer sentiment remain important for interpretation because they explain the market environment around the price movement.
 
-This result is coherent with economic intuition.
-Housing prices are affected by financing conditions, labor market strength, and broader macroeconomic pressure.
-Lag features are also important because housing markets often evolve gradually rather than changing abruptly from one period to the next.
+The main lesson is that predictive strength and economic explanation are not identical.
+Lag features may predict very well, but the paper-review and OLAP sections are still needed to explain why the market behaves that way.
 
 \section{Forecast Results}
 
@@ -77,6 +59,8 @@ It transforms the analysis into an interactive environment where users can:
 \end{itemize}
 
 This practical dimension increases the usefulness of the project and makes the results easier to communicate.
+
+\input{generated_results.tex}
 
 \section{Limitations}
 

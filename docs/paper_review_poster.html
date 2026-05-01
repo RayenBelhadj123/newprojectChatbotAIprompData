@@ -326,6 +326,35 @@
       margin-bottom: 4px;
     }
 
+    .figure-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    .result-figure {
+      padding: 12px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+    }
+
+    .result-figure img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: 10px;
+    }
+
+    .result-figure figcaption {
+      margin-top: 8px;
+      color: var(--muted);
+      font-family: Verdana, Geneva, sans-serif;
+      font-size: 0.74rem;
+      font-weight: 700;
+    }
+
     footer {
       display: flex;
       justify-content: space-between;
@@ -355,7 +384,8 @@
       .grid,
       .metric-row,
       .flow,
-      .sources {
+      .sources,
+      .figure-grid {
         grid-template-columns: 1fr;
       }
       .wide,
@@ -494,6 +524,48 @@
           <li>ML scores depend on selected features and the train/test split.</li>
           <li>Forecasts are educational and should not be treated as financial advice.</li>
         </ul>
+      </article>
+
+      <article class="card full">
+        <span class="label">Generated Results</span>
+        <h2>Evaluation, Diagnostics, and OLAP Evidence</h2>
+        <p>
+          The final report now includes generated figures from the project CSV. Using a chronological
+          80/20 split, Linear Regression reached R2 = 0.999, RMSE = 0.797, and MAE = 0.661 because
+          the dataset contains lagged and smoothed price features that preserve the market trend.
+        </p>
+        <div class="metric-row">
+          <div class="metric">
+            <strong>0.999</strong>
+            <span>Best test R2</span>
+          </div>
+          <div class="metric">
+            <strong>0.797</strong>
+            <span>Best RMSE</span>
+          </div>
+          <div class="metric">
+            <strong>Biden</strong>
+            <span>Highest avg HPI</span>
+          </div>
+        </div>
+        <div class="figure-grid">
+          <figure class="result-figure">
+            <img src="../final_housing_intelligence_latex_report/figures/model_evaluation_results.png" alt="Model evaluation results chart">
+            <figcaption>Model evaluation: R2, RMSE, and MAE comparison.</figcaption>
+          </figure>
+          <figure class="result-figure">
+            <img src="../final_housing_intelligence_latex_report/figures/fit_diagnostics_results.png" alt="Fit diagnostics train and test chart">
+            <figcaption>Diagnostics: train-test behavior and overfitting risk.</figcaption>
+          </figure>
+          <figure class="result-figure">
+            <img src="../final_housing_intelligence_latex_report/figures/olap_period_results.png" alt="OLAP period comparison chart">
+            <figcaption>OLAP: administration-period comparison for HPI and macro indicators.</figcaption>
+          </figure>
+          <figure class="result-figure">
+            <img src="../final_housing_intelligence_latex_report/figures/correlation_results.png" alt="Correlation results chart">
+            <figcaption>Paper-review bridge: correlations connect app results to housing theory.</figcaption>
+          </figure>
+        </div>
       </article>
 
       <article class="card full">
