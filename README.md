@@ -22,6 +22,7 @@ The goal is to explain U.S. housing-price behavior using both data science and r
 - **Administration Comparison**: period comparison tables, charts, and radar view.
 - **ML Lab**: supervised regression/classification with multiple models.
 - **Evaluation**: full model comparison table with `R2`, `MAE`, `RMSE`, `Accuracy`, `Precision`, `Recall`, `F1`, and `ROC AUC` where available.
+- **Fit Diagnostics**: overfitting/underfitting detection with train-test gaps, graphs, and hyperparameter recommendations.
 - **Model Explainability**: feature importance, coefficients, or permutation-style importance.
 - **Unsupervised Lab**: KMeans, DBSCAN, PCA, and IsolationForest examples.
 - **Reinforcement Lab**: educational Q-learning style market-decision example.
@@ -31,10 +32,10 @@ The goal is to explain U.S. housing-price behavior using both data science and r
 - **Code Lab**: prompt box for generating Streamlit code snippets.
 - **OLAP & Export**: pivot tables, interpretation, 3D OLAP cube, heatmap, and CSV downloads.
 - **Data Dictionary**: column roles, types, missing values, unique counts, and examples.
-- **Scenario Simulator**: what-if model simulation for feature changes.
+- **Scenario Simulator**: multi-feature what-if model simulation using the most recent data values as defaults.
 - **Production Readiness**: validation checks, drift monitoring, model card, and governance checklist.
 - **Enterprise-style UI**: workflow strip, polished theme, clean metric cards, and professional tab styling.
-- **Branding and search**: HousingIQ logo lockup, dashboard search, and beginner guide cards for ML sections.
+- **Branding and advanced search**: HousingIQ logo lockup, ranked category search, dataset-column search, and beginner guide cards for ML sections.
 
 ## Screenshots To Capture
 

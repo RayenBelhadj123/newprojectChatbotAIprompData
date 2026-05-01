@@ -10,6 +10,7 @@ moved into ``src/us_housing`` modules as the project grows.
 
 import os
 import sys
+from difflib import SequenceMatcher
 from pathlib import Path
 
 # Limit joblib/loky worker discovery noise on Windows before importing scikit-learn.
@@ -735,44 +736,141 @@ def learning_cards(cards: list[tuple[str, str, str]]) -> None:
 def dashboard_search_items() -> list[dict[str, str]]:
     """Define searchable dashboard destinations and common keywords."""
     return [
-        {"page": "Overview", "keywords": "trend correlation target summary drivers", "desc": "Start here for target movement and meaningful correlations."},
-        {"page": "Explore", "keywords": "histogram box plot violin scatter distribution outliers", "desc": "Use this for visual exploration and distributions."},
-        {"page": "Data Quality", "keywords": "missing duplicates quality profile clean", "desc": "Check whether the dataset is reliable."},
-        {"page": "ML Lab", "keywords": "machine learning regression classification model train supervised", "desc": "Run one supervised model or compare models."},
-        {"page": "Evaluation", "keywords": "accuracy precision recall f1 auc r2 rmse mae metrics explainability", "desc": "Compare models and explain why the best one wins."},
-        {"page": "Unsupervised Lab", "keywords": "kmeans dbscan pca isolation forest anomaly clusters", "desc": "Find groups, components, and unusual periods."},
-        {"page": "Reinforcement Lab", "keywords": "reinforcement q learning reward action state policy", "desc": "See an educational decision-policy example."},
-        {"page": "Forecast", "keywords": "forecast predict future horizon lag", "desc": "Predict future target values."},
-        {"page": "OLAP & Export", "keywords": "olap cube pivot 3d segment export csv", "desc": "Build pivots, segment insights, and 3D OLAP cube."},
-        {"page": "Scenario Simulator", "keywords": "scenario what if simulator impact change feature", "desc": "Test a what-if feature change."},
-        {"page": "Paper Review", "keywords": "paper research real life current market comparison", "desc": "Compare app results with outside research."},
-        {"page": "Production Readiness", "keywords": "validation drift model card governance production", "desc": "Big-company checks for trust and governance."},
-        {"page": "Experiment Tracker", "keywords": "experiment tracking runs metrics history", "desc": "Track model experiments and download run history."},
-        {"page": "Model Registry", "keywords": "registry champion model approval version owner", "desc": "Promote the best model as a champion candidate."},
-        {"page": "Data Pipeline", "keywords": "pipeline workflow raw clean train evaluate report", "desc": "Show the end-to-end data science workflow."},
-        {"page": "Business Impact", "keywords": "business decision stakeholder impact value", "desc": "Translate technical results into business meaning."},
+        {"page": "Start Here", "category": "Guide", "keywords": "start guide demo presentation flow checklist beginner", "desc": "Use the recommended project walkthrough and demo script."},
+        {"page": "Overview", "category": "Analysis", "keywords": "trend correlation target summary drivers matrix relationship", "desc": "Start here for target movement and meaningful correlations."},
+        {"page": "Explore", "category": "Analysis", "keywords": "histogram box plot violin scatter distribution outliers chart visual", "desc": "Use this for visual exploration and distributions."},
+        {"page": "Data Quality", "category": "Data", "keywords": "missing duplicates quality profile clean cleaning nettoyage null data preparation", "desc": "Check cleaning, missing values, duplicates, and numeric profiles."},
+        {"page": "Compare", "category": "Analysis", "keywords": "administration comparison trump biden period radar difference", "desc": "Compare selected metrics across administrations and periods."},
+        {"page": "ML Lab", "category": "Modeling", "keywords": "machine learning regression classification model train supervised fit prediction", "desc": "Run one supervised model or compare models."},
+        {"page": "Evaluation", "category": "Modeling", "keywords": "accuracy precision recall f1 auc r2 rmse mae metrics explainability best model", "desc": "Compare models and explain why the best one wins."},
+        {"page": "Fit Diagnostics", "category": "Modeling", "keywords": "overfitting underfitting train test gap hyperparameters diagnostics regularization", "desc": "Check train/test gaps and model fit problems."},
+        {"page": "Unsupervised Lab", "category": "Modeling", "keywords": "kmeans dbscan pca isolation forest anomaly clusters unsupervised segments", "desc": "Find groups, components, and unusual periods."},
+        {"page": "Reinforcement Lab", "category": "Modeling", "keywords": "reinforcement q learning reward action state policy decision", "desc": "See an educational decision-policy example."},
+        {"page": "Forecast", "category": "Decision", "keywords": "forecast predict future horizon lag time series", "desc": "Predict future target values."},
+        {"page": "Scenario Simulator", "category": "Decision", "keywords": "scenario what if simulator impact change feature multi feature sensitivity", "desc": "Test a multi-feature what-if change."},
+        {"page": "OLAP & Export", "category": "Analysis", "keywords": "olap cube pivot 3d segment export csv heatmap", "desc": "Build pivots, segment insights, and 3D OLAP cube."},
+        {"page": "Executive Summary", "category": "Report", "keywords": "executive summary report markdown presentation conclusion", "desc": "Preview and download the one-page project story."},
+        {"page": "Data Dictionary", "category": "Data", "keywords": "dictionary schema column type missing range role metadata", "desc": "Review column roles, types, missing values, and examples."},
+        {"page": "Paper Review", "category": "Research", "keywords": "paper research real life current market comparison theory sources", "desc": "Compare app results with outside research."},
+        {"page": "Production Readiness", "category": "Governance", "keywords": "validation drift model card governance production monitoring checks", "desc": "Big-company checks for trust and governance."},
+        {"page": "Experiment Tracker", "category": "Governance", "keywords": "experiment tracking runs metrics history mlflow", "desc": "Track model experiments and download run history."},
+        {"page": "Model Registry", "category": "Governance", "keywords": "registry champion model approval version owner promote", "desc": "Promote the best model as a champion candidate."},
+        {"page": "Data Pipeline", "category": "Governance", "keywords": "pipeline workflow raw clean train evaluate report lineage", "desc": "Show the end-to-end data science workflow."},
+        {"page": "Business Impact", "category": "Decision", "keywords": "business decision stakeholder impact value insight", "desc": "Translate technical results into business meaning."},
+        {"page": "Code Lab", "category": "Guide", "keywords": "code prompt streamlit python generate snippet openai", "desc": "Generate Streamlit code snippets for the current dataset."},
     ]
 
 
-def render_search_results(query: str) -> None:
-    """Show matching navigation hints for the sidebar search box."""
-    query = query.strip().lower()
+def search_score(query: str, item: dict[str, str]) -> tuple[float, str]:
+    """Score a search item using exact, token, and fuzzy matching."""
+    tokens = [token for token in query.lower().split() if token]
+    searchable = f"{item['page']} {item.get('category', '')} {item['keywords']} {item['desc']}".lower()
+    score = 0.0
+    reasons = []
+    if query.lower() in item["page"].lower():
+        score += 8
+        reasons.append("page title")
+    if query.lower() in searchable:
+        score += 4
+        reasons.append("phrase")
+    for token in tokens:
+        if token in item["page"].lower():
+            score += 5
+            reasons.append(f"`{token}` in page")
+        elif token in item["keywords"].lower():
+            score += 3
+            reasons.append(f"`{token}` keyword")
+        elif token in item["desc"].lower():
+            score += 2
+            reasons.append(f"`{token}` in description")
+        else:
+            best_fuzzy = max(
+                SequenceMatcher(None, token, word).ratio()
+                for word in searchable.replace("&", " ").replace("/", " ").split()
+            )
+            if best_fuzzy >= 0.78:
+                score += 1.5
+                reasons.append(f"`{token}` fuzzy match")
+    return score, ", ".join(dict.fromkeys(reasons)) or "related topic"
+
+
+def advanced_search_results(
+    query: str,
+    category: str = "All",
+    limit: int = 5,
+    df: pd.DataFrame | None = None,
+    include_columns: bool = False,
+) -> pd.DataFrame:
+    """Return ranked page and optional dataset-column search results."""
+    query = query.strip()
+    rows = []
+    for item in dashboard_search_items():
+        if category != "All" and item["category"] != category:
+            continue
+        score, reason = search_score(query, item)
+        if score > 0:
+            rows.append(
+                {
+                    "Result": item["page"],
+                    "Type": "Page",
+                    "Category": item["category"],
+                    "Description": item["desc"],
+                    "Matched by": reason,
+                    "Score": score,
+                }
+            )
+
+    if include_columns and df is not None:
+        for column in df.columns:
+            item = {
+                "page": str(column),
+                "category": "Data Column",
+                "keywords": str(column).replace("_", " "),
+                "desc": f"Dataset column with type {df[column].dtype} and {df[column].isna().sum():,} missing value(s).",
+            }
+            score, reason = search_score(query, item)
+            if score > 0:
+                rows.append(
+                    {
+                        "Result": str(column),
+                        "Type": "Column",
+                        "Category": "Data",
+                        "Description": item["desc"],
+                        "Matched by": reason,
+                        "Score": score,
+                    }
+                )
+
+    if not rows:
+        return pd.DataFrame()
+    return pd.DataFrame(rows).sort_values("Score", ascending=False).head(limit)
+
+
+def render_search_results(
+    query: str,
+    category: str = "All",
+    limit: int = 5,
+    df: pd.DataFrame | None = None,
+    include_columns: bool = False,
+) -> None:
+    """Show ranked navigation and column-search hints for the sidebar search box."""
+    query = query.strip()
     if not query:
+        st.caption("Try searches like `overfit`, `cleaning`, `forecast`, `mortgage`, `OLAP`, or `scenario`.")
         return
-    matches = [
-        item
-        for item in dashboard_search_items()
-        if query in item["page"].lower() or any(word in item["keywords"] for word in query.split())
-    ][:5]
-    if not matches:
-        st.caption("No exact feature match. Try: model, OLAP, forecast, accuracy, drift, or scenario.")
+    matches = advanced_search_results(query, category, limit, df, include_columns)
+    if matches.empty:
+        st.caption("No match found. Try: model, OLAP, forecast, accuracy, drift, scenario, or a column name.")
         return
-    for item in matches:
+
+    st.caption(f"{len(matches)} ranked result(s)")
+    for item in matches.to_dict("records"):
         st.markdown(
             f"""
             <div class="search-result">
-                <strong>{item["page"]}</strong>
-                <span>{item["desc"]}</span>
+                <strong>{item["Result"]}</strong>
+                <span>{item["Type"]} | {item["Category"]} | match: {item["Matched by"]}</span>
+                <span>{item["Description"]}</span>
             </div>
             """,
             unsafe_allow_html=True,
@@ -1273,6 +1371,173 @@ def model_feature_importance(
     else:
         importance["Importance %"] = 0.0
     return importance.sort_values("Importance", ascending=False)
+
+
+def fit_diagnosis_label(train_score: float, test_score: float, gap: float) -> str:
+    """Classify model fit quality from train/test score behavior."""
+    if train_score >= 0.75 and gap >= 0.15:
+        return "Overfitting risk"
+    if train_score < 0.45 and test_score < 0.45:
+        return "Underfitting risk"
+    if test_score < 0 and train_score > 0:
+        return "Poor generalization"
+    return "Reasonable fit"
+
+
+def hyperparameter_fix_recommendation(model_name: str, diagnosis: str, task_type: str) -> str:
+    """Recommend practical hyperparameter changes for the selected model and fit diagnosis."""
+    if diagnosis == "Overfitting risk":
+        fixes = {
+            "RandomForest": "Reduce `max_depth`, increase `min_samples_leaf`, increase `min_samples_split`, or use fewer/noisier features.",
+            "GradientBoosting": "Lower `learning_rate`, reduce `max_depth`, reduce `n_estimators`, or add early stopping with validation data.",
+            "DecisionTree": "Set a smaller `max_depth`, increase `min_samples_leaf`, and prune the tree with `ccp_alpha`.",
+            "KNN": "Increase `n_neighbors`, scale features, and remove noisy features.",
+            "NeuralNetwork": "Increase `alpha`, use smaller hidden layers, keep `early_stopping=True`, or reduce `max_iter` if it memorizes.",
+            "SVR": "Reduce `C`, increase `epsilon`, tune `gamma`, and scale features.",
+            "Ridge": "Increase `alpha` to add stronger regularization.",
+            "LinearRegression": "Switch to Ridge/Lasso-style regularization or reduce high-leakage/noisy features.",
+            "LogisticRegression": "Decrease `C` to strengthen regularization and remove noisy features.",
+        }
+        return fixes.get(model_name, "Reduce model complexity, add regularization, remove noisy features, or collect more data.")
+    if diagnosis == "Underfitting risk":
+        fixes = {
+            "RandomForest": "Increase `n_estimators`, allow deeper trees with larger `max_depth`, or add stronger predictive features.",
+            "GradientBoosting": "Increase `n_estimators`, raise `learning_rate` carefully, allow deeper trees, or add better features.",
+            "DecisionTree": "Increase `max_depth`, lower `min_samples_leaf`, or use RandomForest/GradientBoosting instead.",
+            "KNN": "Decrease `n_neighbors`, try distance weighting, and make sure features are scaled.",
+            "NeuralNetwork": "Increase hidden-layer size, reduce `alpha`, train longer, or add better scaled features.",
+            "SVR": "Increase `C`, tune `gamma`, lower `epsilon`, and scale features.",
+            "Ridge": "Lower `alpha`, add non-linear features, or try tree-based models.",
+            "LinearRegression": "Add interaction/lag features or try RandomForest/GradientBoosting for non-linear patterns.",
+            "LogisticRegression": "Increase `C`, add useful features, or try tree-based classifiers.",
+        }
+        return fixes.get(model_name, "Increase model capacity, add stronger features, tune preprocessing, or try a more flexible model.")
+    if diagnosis == "Poor generalization":
+        return (
+            "Check for time drift, target leakage, too few rows, or a train/test split that represents a different market period. "
+            "Use cross-validation and compare with simpler models."
+        )
+    return "No urgent fix is required. Keep monitoring train/test gap, cross-validation stability, and feature quality."
+
+
+def diagnose_model_fit(
+    data: pd.DataFrame,
+    target: str,
+    features: list[str],
+    task_type: str,
+    use_scaling: bool,
+    scaler_name: str,
+    models_to_check: list[str],
+) -> pd.DataFrame:
+    """Evaluate train/test behavior to flag overfitting and underfitting."""
+    model_df = data[[target] + features].copy().dropna(subset=[target])
+    split = int(len(model_df) * 0.8)
+    X_train, X_test = model_df[features].iloc[:split], model_df[features].iloc[split:]
+    y_train, y_test = model_df[target].iloc[:split], model_df[target].iloc[split:]
+    rows = []
+
+    if task_type == "Classification":
+        y_train, y_test = make_classification_labels(y_train, y_test)
+        # Encode labels as plain integers for diagnostics. This avoids NumPy
+        # isnan/type-coercion errors that can happen with pandas categorical
+        # labels inside some scikit-learn estimators and scoring functions.
+        label_codes = {"Low": 0, "Medium": 1, "High": 2}
+        y_train_codes = y_train.astype(str).map(label_codes)
+        y_test_codes = y_test.astype(str).map(label_codes)
+        if y_train_codes.isna().any() or y_test_codes.isna().any():
+            combined_labels = pd.concat([y_train.astype(str), y_test.astype(str)], ignore_index=True)
+            fallback_codes = {label: code for code, label in enumerate(sorted(combined_labels.unique()))}
+            y_train_codes = y_train.astype(str).map(fallback_codes)
+            y_test_codes = y_test.astype(str).map(fallback_codes)
+        y_train = y_train_codes.astype(int)
+        y_test = y_test_codes.astype(int)
+
+    for model_name in models_to_check:
+        cv_metric = "CV R2" if task_type == "Regression" else "CV F1"
+        cv_scoring = "r2" if task_type == "Regression" else "f1_weighted"
+        try:
+            pipeline = build_model_pipeline(model_name, task_type, use_scaling, scaler_name)
+            pipeline.fit(X_train, y_train)
+            train_pred = pipeline.predict(X_train)
+            test_pred = pipeline.predict(X_test)
+
+            if task_type == "Regression":
+                train_score = float(r2_score(y_train, train_pred))
+                test_score = float(r2_score(y_test, test_pred))
+                train_mae = float(mean_absolute_error(y_train, train_pred))
+                test_mae = float(mean_absolute_error(y_test, test_pred))
+                train_rmse = float(np.sqrt(mean_squared_error(y_train, train_pred)))
+                test_rmse = float(np.sqrt(mean_squared_error(y_test, test_pred)))
+            else:
+                train_score = float(f1_score(y_train, train_pred, average="weighted", zero_division=0))
+                test_score = float(f1_score(y_test, test_pred, average="weighted", zero_division=0))
+                train_mae = np.nan
+                test_mae = np.nan
+                train_rmse = np.nan
+                test_rmse = np.nan
+        except Exception as err:
+            rows.append(
+                {
+                    "Model": model_name,
+                    "Task": task_type,
+                    "Train score": np.nan,
+                    "Test score": np.nan,
+                    "Train-Test gap": np.nan,
+                    "Diagnosis": "Model failed",
+                    cv_metric: np.nan,
+                    "CV std": np.nan,
+                    "Train MAE": np.nan,
+                    "Test MAE": np.nan,
+                    "Train RMSE": np.nan,
+                    "Test RMSE": np.nan,
+                    "What to fix": f"Model could not run with the selected setup: {err}",
+                }
+            )
+            continue
+
+        gap = float(train_score - test_score)
+        diagnosis = fit_diagnosis_label(train_score, test_score, gap)
+        cv = min(5, len(X_train))
+        if cv >= 2:
+            try:
+                cv_scores = cross_val_score(pipeline, X_train, y_train, cv=cv, scoring=cv_scoring)
+                cv_mean = float(cv_scores.mean())
+                cv_std = float(cv_scores.std())
+            except Exception:
+                cv_mean = np.nan
+                cv_std = np.nan
+        else:
+            cv_mean = np.nan
+            cv_std = np.nan
+
+        rows.append(
+            {
+                "Model": model_name,
+                "Task": task_type,
+                "Train score": train_score,
+                "Test score": test_score,
+                "Train-Test gap": gap,
+                "Diagnosis": diagnosis,
+                cv_metric: cv_mean,
+                "CV std": cv_std,
+                "Train MAE": train_mae,
+                "Test MAE": test_mae,
+                "Train RMSE": train_rmse,
+                "Test RMSE": test_rmse,
+                "What to fix": hyperparameter_fix_recommendation(model_name, diagnosis, task_type),
+            }
+        )
+
+    diagnosis_order = {
+        "Overfitting risk": 0,
+        "Underfitting risk": 1,
+        "Poor generalization": 2,
+        "Reasonable fit": 3,
+        "Model failed": 4,
+    }
+    result = pd.DataFrame(rows)
+    result["_diagnosis_order"] = result["Diagnosis"].map(diagnosis_order).fillna(9)
+    return result.sort_values(["_diagnosis_order", "Test score"], ascending=[True, False]).drop(columns="_diagnosis_order")
 
 
 # -----------------------------------------------------------------------------
@@ -2339,8 +2604,24 @@ with st.sidebar:
 
     st.divider()
     st.subheader("Search")
-    dashboard_query = st.text_input("Find a page or feature", placeholder="Try: accuracy, OLAP, forecast, drift")
-    render_search_results(dashboard_query)
+    if "dashboard_query" not in st.session_state:
+        st.session_state.dashboard_query = ""
+    dashboard_query = st.text_input(
+        "Find a page, feature, metric, or column",
+        placeholder="Try: overfit, cleaning, mortgage, OLAP, scenario",
+        key="dashboard_query",
+    )
+    search_categories = ["All"] + sorted({item["category"] for item in dashboard_search_items()})
+    search_category = st.selectbox("Search category", search_categories, key="search_category")
+    search_limit = st.slider("Max results", 3, 10, 5, key="search_limit")
+    include_column_search = st.checkbox("Include dataset columns", value=True, key="include_column_search")
+    suggestion_cols = st.columns(2)
+    if suggestion_cols[0].button("Models", key="search_models"):
+        st.session_state.dashboard_query = "model metrics overfit"
+        st.rerun()
+    if suggestion_cols[1].button("Data", key="search_data"):
+        st.session_state.dashboard_query = "cleaning missing column"
+        st.rerun()
 
     st.divider()
     st.subheader("Dataset")
@@ -2369,6 +2650,16 @@ else:
 # the same prepared dataset and labels.
 df, date_col = clean_data(raw_df)
 cleaning_report = data_cleaning_report(raw_df, df, date_col)
+
+with st.sidebar:
+    st.markdown("#### Search Results")
+    render_search_results(
+        dashboard_query,
+        search_category,
+        search_limit,
+        df,
+        include_column_search,
+    )
 
 with st.sidebar:
     # Date filtering happens after cleaning because the date column may need to
@@ -2569,6 +2860,7 @@ tabs = st.tabs(
         "Model Registry",
         "Data Pipeline",
         "Business Impact",
+        "Fit Diagnostics",
     ]
 )
 
@@ -4549,10 +4841,10 @@ with tabs[15]:
 
 
 with tabs[16]:
-    # Scenario Simulator changes one feature at a time to show model sensitivity.
+    # Scenario Simulator changes one or more features to show model sensitivity.
     # It is useful for explanation, but should not be treated as causal proof.
     st.subheader("Scenario Simulator")
-    st.caption("Change one feature and estimate how the trained regression model reacts.")
+    st.caption("Change multiple features and estimate how the trained regression model reacts.")
     if len(num_cols) < 2:
         st.info("Scenario simulation needs at least two numeric columns.")
     else:
@@ -4577,30 +4869,79 @@ with tabs[16]:
                 index=0,
                 key="sim_model",
             )
-            change_feature = st.selectbox("Feature to change", sim_features, key="sim_change_feature")
-            change_type = st.radio("Change type", ["Percent", "Absolute"], horizontal=True)
-            change_amount = st.number_input("Change amount", value=10.0)
             scenario_df = df[[sim_target] + sim_features].dropna()
+            change_features: list[str] = []
             if len(scenario_df) < 20:
                 st.warning("Need at least 20 complete rows for a useful scenario model.")
-            elif st.button("Run scenario simulation", type="primary"):
+            else:
+                # Use the most recent complete row as the default scenario base.
+                # This makes the simulator feel practical because users start
+                # from the latest observed market values instead of arbitrary inputs.
+                if date_col and date_col in df.columns:
+                    recent_dates = df.loc[scenario_df.index, date_col].dropna().sort_values()
+                    recent_index = recent_dates.index[-1] if not recent_dates.empty else scenario_df.index[-1]
+                else:
+                    recent_index = scenario_df.index[-1]
+                baseline_row = scenario_df.loc[[recent_index], sim_features].copy()
+
+                change_features = st.multiselect(
+                    "Multi-feature to change",
+                    sim_features,
+                    default=sim_features[: min(3, len(sim_features))],
+                    key="sim_change_features",
+                    help="Select one or more features. Each default value is the most recent number available in the data.",
+                )
+
+                if not change_features:
+                    st.info("Select at least one feature to change.")
+                else:
+                    st.markdown("#### Scenario Inputs")
+                    st.caption("Defaults come from the most recent complete row in the filtered dataset.")
+                    scenario_row = baseline_row.copy()
+                    changed_rows = []
+                    input_cols = st.columns(min(3, len(change_features)))
+                    for idx, feature in enumerate(change_features):
+                        baseline_value = float(baseline_row[feature].iloc[0])
+                        with input_cols[idx % len(input_cols)]:
+                            scenario_value = st.number_input(
+                                feature,
+                                value=baseline_value,
+                                key=f"sim_value_{feature}",
+                                help=f"Most recent value: {baseline_value:,.2f}",
+                            )
+                        scenario_row[feature] = scenario_value
+                        changed_rows.append(
+                            {
+                                "Feature": feature,
+                                "Recent value": baseline_value,
+                                "Scenario value": float(scenario_value),
+                                "Change": float(scenario_value - baseline_value),
+                                "Change %": (
+                                    float((scenario_value - baseline_value) / baseline_value * 100)
+                                    if baseline_value != 0
+                                    else np.nan
+                                ),
+                            }
+                        )
+
+                    changes_df = pd.DataFrame(changed_rows)
+                    st.dataframe(
+                        changes_df.round({"Recent value": 3, "Scenario value": 3, "Change": 3, "Change %": 2}),
+                        width="stretch",
+                        hide_index=True,
+                    )
+
+            if len(scenario_df) >= 20 and change_features and st.button("Run scenario simulation", type="primary"):
                 # Train a quick local regression model from the currently
                 # selected features, then score baseline and changed rows.
                 pipeline = build_model_pipeline(sim_model, "Regression", True, "StandardScaler")
                 pipeline.fit(scenario_df[sim_features], scenario_df[sim_target])
-                baseline_row = scenario_df[sim_features].iloc[[-1]].copy()
-                scenario_row = baseline_row.copy()
-                original_value = float(scenario_row[change_feature].iloc[0])
-                if change_type == "Percent":
-                    scenario_row[change_feature] = scenario_row[change_feature] * (1 + change_amount / 100)
-                else:
-                    scenario_row[change_feature] = scenario_row[change_feature] + change_amount
                 baseline_pred = float(pipeline.predict(baseline_row)[0])
                 scenario_pred = float(pipeline.predict(scenario_row)[0])
                 delta = scenario_pred - baseline_pred
                 st.success(
-                    f"Scenario result: changing `{change_feature}` from `{original_value:,.2f}` to "
-                    f"`{float(scenario_row[change_feature].iloc[0]):,.2f}` changes predicted `{sim_target}` by `{delta:,.2f}`.",
+                    f"Scenario result: changing `{len(change_features)}` feature(s) changes predicted "
+                    f"`{sim_target}` by `{delta:,.2f}`.",
                     icon=":material/tune:",
                 )
                 scenario_result = pd.DataFrame(
@@ -4830,3 +5171,216 @@ with tabs[21]:
         explaining not only **what happened**, but also **why it matters** and **what to monitor next**.
         """
     )
+
+
+with tabs[22]:
+    # Fit Diagnostics checks whether models are learning useful patterns,
+    # memorizing training data, or staying too simple to capture the signal.
+    st.subheader("Fit Diagnostics")
+    st.caption("Detect overfitting and underfitting with train/test scores, score gaps, charts, and fix recommendations.")
+    learning_cards(
+        [
+            (
+                "Overfitting",
+                "High train, weak test",
+                "The model memorizes training rows but fails on unseen rows. Reduce complexity or add regularization.",
+            ),
+            (
+                "Underfitting",
+                "Weak train and weak test",
+                "The model is too simple or the features are not strong enough. Add capacity, features, or better preprocessing.",
+            ),
+            (
+                "What to fix",
+                "Use model-specific knobs",
+                "The recommendation table names hyperparameters such as max_depth, alpha, C, n_neighbors, or learning_rate.",
+            ),
+        ]
+    )
+
+    if len(num_cols) < 2:
+        st.info("Fit diagnostics needs at least two numeric columns.")
+    else:
+        fit_target = st.selectbox(
+            "Diagnostics target",
+            num_cols,
+            index=num_cols.index(target_default) if target_default in num_cols else 0,
+            key="fit_target",
+        )
+        fit_feature_candidates = [col for col in num_cols if col != fit_target]
+        fit_features = st.multiselect(
+            "Diagnostics features",
+            fit_feature_candidates,
+            default=fit_feature_candidates[: min(10, len(fit_feature_candidates))],
+            key="fit_features",
+        )
+        fit_task = st.radio("Diagnostics task", ["Regression", "Classification"], horizontal=True, key="fit_task")
+        fit_scale = st.checkbox("Scale diagnostics features", value=True, key="fit_scale")
+        fit_scaler = st.selectbox("Diagnostics scaler", ["StandardScaler", "MinMaxScaler"], key="fit_scaler")
+        available_fit_models = model_options_for_task(fit_task)
+        fit_models = st.multiselect(
+            "Models to diagnose",
+            available_fit_models,
+            default=available_fit_models[: min(5, len(available_fit_models))],
+            key="fit_models",
+        )
+
+        if not fit_features:
+            st.info("Select at least one feature.")
+        elif not fit_models:
+            st.info("Select at least one model to diagnose.")
+        else:
+            fit_model_df = df[[fit_target] + fit_features].dropna(subset=[fit_target])
+            min_rows = 20 if fit_task == "Regression" else 30
+            if len(fit_model_df) < min_rows:
+                st.warning(f"Need at least {min_rows} rows after filtering for useful fit diagnostics.")
+            elif st.button("Run fit diagnostics", type="primary"):
+                try:
+                    diagnostics = diagnose_model_fit(
+                        df,
+                        fit_target,
+                        fit_features,
+                        fit_task,
+                        fit_scale,
+                        fit_scaler,
+                        fit_models,
+                    )
+                except Exception as err:
+                    st.error(f"Could not run fit diagnostics: {err}")
+                else:
+                    st.session_state.fit_diagnostics = diagnostics
+                    st.session_state.fit_diagnostics_task = fit_task
+
+        diagnostics = st.session_state.get("fit_diagnostics")
+        if diagnostics is not None and not diagnostics.empty:
+            task = st.session_state.get("fit_diagnostics_task", fit_task)
+            rounded = diagnostics.round(
+                {
+                    "Train score": 4,
+                    "Test score": 4,
+                    "Train-Test gap": 4,
+                    "CV R2": 4,
+                    "CV F1": 4,
+                    "CV std": 4,
+                    "Train MAE": 3,
+                    "Test MAE": 3,
+                    "Train RMSE": 3,
+                    "Test RMSE": 3,
+                }
+            )
+
+            st.markdown("#### Diagnosis Numbers")
+            st.dataframe(rounded, width="stretch", hide_index=True)
+
+            counts = diagnostics["Diagnosis"].value_counts()
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Overfitting risks", f"{int(counts.get('Overfitting risk', 0))}")
+            c2.metric("Underfitting risks", f"{int(counts.get('Underfitting risk', 0))}")
+            c3.metric("Poor generalization", f"{int(counts.get('Poor generalization', 0))}")
+            c4.metric("Reasonable fits", f"{int(counts.get('Reasonable fit', 0))}")
+
+            score_long = diagnostics.melt(
+                id_vars=["Model", "Diagnosis"],
+                value_vars=["Train score", "Test score"],
+                var_name="Split",
+                value_name="Score",
+            )
+            st.plotly_chart(
+                px.bar(
+                    score_long,
+                    x="Model",
+                    y="Score",
+                    color="Split",
+                    barmode="group",
+                    title="Train Score vs Test Score",
+                ),
+                width="stretch",
+            )
+
+            st.plotly_chart(
+                px.bar(
+                    diagnostics.sort_values("Train-Test gap"),
+                    x="Train-Test gap",
+                    y="Model",
+                    color="Diagnosis",
+                    orientation="h",
+                    title="Train-Test Gap by Model",
+                ),
+                width="stretch",
+            )
+
+            cv_col = "CV R2" if task == "Regression" else "CV F1"
+            if cv_col in diagnostics.columns:
+                cv_chart = diagnostics[["Model", "Test score", cv_col, "CV std", "Diagnosis"]].copy()
+                cv_chart = cv_chart.melt(
+                    id_vars=["Model", "Diagnosis"],
+                    value_vars=["Test score", cv_col],
+                    var_name="Metric",
+                    value_name="Score",
+                )
+                st.plotly_chart(
+                    px.line(
+                        cv_chart,
+                        x="Model",
+                        y="Score",
+                        color="Metric",
+                        markers=True,
+                        title=f"Test Score vs Cross-Validation ({cv_col})",
+                    ),
+                    width="stretch",
+                )
+
+            if task == "Regression":
+                error_long = diagnostics.melt(
+                    id_vars=["Model"],
+                    value_vars=["Train RMSE", "Test RMSE", "Train MAE", "Test MAE"],
+                    var_name="Error metric",
+                    value_name="Error",
+                )
+                st.plotly_chart(
+                    px.bar(
+                        error_long,
+                        x="Model",
+                        y="Error",
+                        color="Error metric",
+                        barmode="group",
+                        title="Regression Error: Train vs Test",
+                    ),
+                    width="stretch",
+                )
+
+            st.markdown("#### What To Fix")
+            recommendations = diagnostics[["Model", "Diagnosis", "What to fix"]].copy()
+            st.dataframe(recommendations, width="stretch", hide_index=True)
+
+            risky = diagnostics[diagnostics["Diagnosis"].isin(["Overfitting risk", "Underfitting risk", "Poor generalization"])]
+            if risky.empty:
+                st.success(
+                    "No strong overfitting or underfitting signal was detected. Keep monitoring the gap and cross-validation stability.",
+                    icon=":material/verified:",
+                )
+            else:
+                worst = risky.iloc[0]
+                st.warning(
+                    f"Main issue to review first: `{worst['Model']}` shows `{worst['Diagnosis']}` "
+                    f"with train score `{worst['Train score']:.3f}`, test score `{worst['Test score']:.3f}`, "
+                    f"and gap `{worst['Train-Test gap']:.3f}`.",
+                    icon=":material/report:",
+                )
+                st.info(str(worst["What to fix"]), icon=":material/tune:")
+
+            with st.expander("How the diagnosis is decided"):
+                st.markdown(
+                    "- **Overfitting risk:** train score is high and the train-test gap is large.\n"
+                    "- **Underfitting risk:** both train and test scores are weak.\n"
+                    "- **Poor generalization:** the model has positive training signal but fails badly on test data.\n"
+                    "- **Reasonable fit:** no strong warning pattern was detected.\n"
+                    "- These rules are practical diagnostics, not absolute proof. Always combine them with domain logic, feature review, and cross-validation."
+                )
+
+            st.download_button(
+                "Download fit diagnostics CSV",
+                data=diagnostics.to_csv(index=False).encode("utf-8"),
+                file_name="fit_diagnostics.csv",
+                mime="text/csv",
+            )

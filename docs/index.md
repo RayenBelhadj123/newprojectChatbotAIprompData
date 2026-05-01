@@ -30,7 +30,7 @@ The app also supports uploading a CSV from the sidebar. During loading, the app 
 
 ## 4. Dashboard Pages
 
-The interface is organized like an enterprise analytics product. A HousingIQ logo lockup, sidebar search, and workflow strip guide the user from foundation checks to discovery, modeling, segmentation, decisions, and governance. Beginner guide cards under the ML pages explain what each section does, how to use it, and what to report.
+The interface is organized like an enterprise analytics product. A HousingIQ logo lockup, advanced sidebar search, and workflow strip guide the user from foundation checks to discovery, modeling, segmentation, decisions, and governance. The search panel ranks results, filters by category, supports common misspellings, and can search dataset column names. Beginner guide cards under the ML pages explain what each section does, how to use it, and what to report.
 
 ### Executive Summary
 
@@ -70,6 +70,10 @@ Compares all supervised models in a clean metrics table:
 - Classification: `Accuracy`, `Precision`, `Recall`, `F1`, `ROC AUC` when available
 
 The page also explains why the best model scores higher and why weaker models may score lower.
+
+### Fit Diagnostics
+
+Checks whether supervised models are overfitting, underfitting, or generalizing reasonably. The page compares train score, test score, train-test gap, cross-validation score, and regression errors where available. It also recommends hyperparameter fixes such as changing `max_depth`, `min_samples_leaf`, `alpha`, `C`, `n_neighbors`, `learning_rate`, or neural-network regularization.
 
 ### Model Explainability
 
@@ -142,7 +146,7 @@ Lists every column with role, type, missing values, unique values, and example o
 
 ### Scenario Simulator
 
-Lets the user change one feature and estimate the predicted impact on the selected target with a trained regression model.
+Lets the user change multiple features and estimate the predicted impact on the selected target with a trained regression model. Each scenario input starts from the most recent available value in the filtered dataset.
 
 ### Production Readiness
 
