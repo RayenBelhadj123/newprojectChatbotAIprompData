@@ -22,7 +22,7 @@ The goal is to explain U.S. housing-price behavior using both data science and r
 - **Administration Comparison**: period comparison tables, charts, and radar view.
 - **ML Lab**: supervised regression/classification with multiple models.
 - **Evaluation**: full model comparison table with `R2`, `MAE`, `RMSE`, `Accuracy`, `Precision`, `Recall`, `F1`, and `ROC AUC` where available.
-- **Fit Diagnostics**: overfitting/underfitting detection with train-test gaps, graphs, and hyperparameter recommendations.
+- **Fit Diagnostics**: overfitting/underfitting detection with train-test gaps, graphs, recommendations, and direct hyperparameter tuning.
 - **Model Explainability**: feature importance, coefficients, or permutation-style importance.
 - **Unsupervised Lab**: KMeans, DBSCAN, PCA, and IsolationForest examples.
 - **Reinforcement Lab**: educational Q-learning style market-decision example.

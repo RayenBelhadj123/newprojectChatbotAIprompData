@@ -1137,8 +1137,14 @@ def radar_compare(df: pd.DataFrame, metrics_cols: list[str]):
 # instantiation, preprocessing, scaling, training, evaluation, and feature
 # importance extraction.
 
-def make_model(model_name: str, task_type: str, random_state: int = 0):
+def make_model(
+    model_name: str,
+    task_type: str,
+    random_state: int = 0,
+    hyperparameters: dict[str, object] | None = None,
+):
     """Instantiate the selected scikit-learn model for regression or classification."""
+    params = dict(hyperparameters or {})
     if task_type == "Regression":
         models = {
             "Ridge": Ridge(alpha=1.0),
@@ -1196,10 +1202,116 @@ def make_model(model_name: str, task_type: str, random_state: int = 0):
                 random_state=random_state,
             ),
         }
+    if not params:
+        return models[model_name]
+
+    if task_type == "Regression":
+        if model_name == "Ridge":
+            return Ridge(alpha=float(params.get("alpha", 1.0)))
+        if model_name == "RandomForest":
+            return RandomForestRegressor(
+                n_estimators=int(params.get("n_estimators", 300)),
+                max_depth=params.get("max_depth"),
+                min_samples_leaf=int(params.get("min_samples_leaf", 2)),
+                min_samples_split=int(params.get("min_samples_split", 2)),
+                random_state=random_state,
+                n_jobs=-1,
+            )
+        if model_name == "SVR":
+            return SVR(
+                kernel="rbf",
+                C=float(params.get("C", 1.0)),
+                epsilon=float(params.get("epsilon", 0.1)),
+                gamma=params.get("gamma", "scale"),
+            )
+        if model_name == "GradientBoosting":
+            return GradientBoostingRegressor(
+                n_estimators=int(params.get("n_estimators", 120)),
+                learning_rate=float(params.get("learning_rate", 0.1)),
+                max_depth=int(params.get("max_depth", 3)),
+                min_samples_leaf=int(params.get("min_samples_leaf", 1)),
+                random_state=random_state,
+            )
+        if model_name == "DecisionTree":
+            return DecisionTreeRegressor(
+                max_depth=params.get("max_depth"),
+                min_samples_leaf=int(params.get("min_samples_leaf", 3)),
+                min_samples_split=int(params.get("min_samples_split", 2)),
+                ccp_alpha=float(params.get("ccp_alpha", 0.0)),
+                random_state=random_state,
+            )
+        if model_name == "KNN":
+            return KNeighborsRegressor(
+                n_neighbors=int(params.get("n_neighbors", 5)),
+                weights=str(params.get("weights", "uniform")),
+            )
+        if model_name == "NeuralNetwork":
+            hidden_layers = int(params.get("hidden_layers", 2))
+            hidden_units = int(params.get("hidden_units", 64))
+            return MLPRegressor(
+                hidden_layer_sizes=tuple([hidden_units] * hidden_layers),
+                activation="relu",
+                solver="adam",
+                alpha=float(params.get("alpha", 0.001)),
+                learning_rate_init=float(params.get("learning_rate_init", 0.001)),
+                early_stopping=True,
+                validation_fraction=0.2,
+                max_iter=int(params.get("max_iter", 1200)),
+                random_state=random_state,
+            )
+    else:
+        if model_name == "RandomForest":
+            return RandomForestClassifier(
+                n_estimators=int(params.get("n_estimators", 300)),
+                max_depth=params.get("max_depth"),
+                min_samples_leaf=int(params.get("min_samples_leaf", 1)),
+                min_samples_split=int(params.get("min_samples_split", 2)),
+                random_state=random_state,
+                n_jobs=-1,
+            )
+        if model_name == "LogisticRegression":
+            return LogisticRegression(
+                C=float(params.get("C", 1.0)),
+                random_state=random_state,
+                max_iter=int(params.get("max_iter", 1000)),
+            )
+        if model_name == "DecisionTree":
+            return DecisionTreeClassifier(
+                max_depth=params.get("max_depth"),
+                min_samples_leaf=int(params.get("min_samples_leaf", 3)),
+                min_samples_split=int(params.get("min_samples_split", 2)),
+                ccp_alpha=float(params.get("ccp_alpha", 0.0)),
+                random_state=random_state,
+            )
+        if model_name == "KNN":
+            return KNeighborsClassifier(
+                n_neighbors=int(params.get("n_neighbors", 5)),
+                weights=str(params.get("weights", "uniform")),
+            )
+        if model_name == "NeuralNetwork":
+            hidden_layers = int(params.get("hidden_layers", 2))
+            hidden_units = int(params.get("hidden_units", 64))
+            return MLPClassifier(
+                hidden_layer_sizes=tuple([hidden_units] * hidden_layers),
+                activation="relu",
+                solver="adam",
+                alpha=float(params.get("alpha", 0.001)),
+                learning_rate_init=float(params.get("learning_rate_init", 0.001)),
+                early_stopping=True,
+                validation_fraction=0.2,
+                max_iter=int(params.get("max_iter", 1200)),
+                random_state=random_state,
+            )
     return models[model_name]
 
 
-def build_model_pipeline(model_choice: str, task_type: str, use_scaling: bool, scaler_name: str) -> Pipeline:
+def build_model_pipeline(
+    model_choice: str,
+    task_type: str,
+    use_scaling: bool,
+    scaler_name: str,
+    hyperparameters: dict[str, object] | None = None,
+) -> Pipeline:
     """Create an optional scaling plus model pipeline for supervised learning."""
     # The ML pipeline always begins with imputing missing values. If selected,
     # scaling is applied before the model to keep coefficients and distances
@@ -1208,7 +1320,7 @@ def build_model_pipeline(model_choice: str, task_type: str, use_scaling: bool, s
     if use_scaling:
         scaler = StandardScaler() if scaler_name == "StandardScaler" else MinMaxScaler()
         steps.append(("scaler", scaler))
-    steps.append(("model", make_model(model_choice, task_type)))
+    steps.append(("model", make_model(model_choice, task_type, hyperparameters=hyperparameters)))
     return Pipeline(steps)
 
 
@@ -1428,6 +1540,7 @@ def diagnose_model_fit(
     use_scaling: bool,
     scaler_name: str,
     models_to_check: list[str],
+    custom_hyperparameters: dict[str, dict[str, object]] | None = None,
 ) -> pd.DataFrame:
     """Evaluate train/test behavior to flag overfitting and underfitting."""
     model_df = data[[target] + features].copy().dropna(subset=[target])
@@ -1455,8 +1568,9 @@ def diagnose_model_fit(
     for model_name in models_to_check:
         cv_metric = "CV R2" if task_type == "Regression" else "CV F1"
         cv_scoring = "r2" if task_type == "Regression" else "f1_weighted"
+        model_params = (custom_hyperparameters or {}).get(model_name, {})
         try:
-            pipeline = build_model_pipeline(model_name, task_type, use_scaling, scaler_name)
+            pipeline = build_model_pipeline(model_name, task_type, use_scaling, scaler_name, model_params)
             pipeline.fit(X_train, y_train)
             train_pred = pipeline.predict(X_train)
             test_pred = pipeline.predict(X_test)
@@ -1490,6 +1604,7 @@ def diagnose_model_fit(
                     "Test MAE": np.nan,
                     "Train RMSE": np.nan,
                     "Test RMSE": np.nan,
+                    "Hyperparameters": str(model_params or "Default"),
                     "What to fix": f"Model could not run with the selected setup: {err}",
                 }
             )
@@ -1524,6 +1639,7 @@ def diagnose_model_fit(
                 "Test MAE": test_mae,
                 "Train RMSE": train_rmse,
                 "Test RMSE": test_rmse,
+                "Hyperparameters": str(model_params or "Default"),
                 "What to fix": hyperparameter_fix_recommendation(model_name, diagnosis, task_type),
             }
         )
@@ -1538,6 +1654,92 @@ def diagnose_model_fit(
     result = pd.DataFrame(rows)
     result["_diagnosis_order"] = result["Diagnosis"].map(diagnosis_order).fillna(9)
     return result.sort_values(["_diagnosis_order", "Test score"], ascending=[True, False]).drop(columns="_diagnosis_order")
+
+
+def render_hyperparameter_controls(model_name: str, task_type: str, tuning_goal: str) -> dict[str, object]:
+    """Render model-specific tuning controls and return selected hyperparameters."""
+    params: dict[str, object] = {}
+    overfit = tuning_goal == "Reduce overfitting"
+    underfit = tuning_goal == "Reduce underfitting"
+
+    if model_name == "LinearRegression":
+        st.info("LinearRegression has no main regularization hyperparameter. Use Ridge, remove noisy features, or add better features.")
+        return params
+
+    if model_name in {"RandomForest", "GradientBoosting"}:
+        default_estimators = 200 if overfit else 500 if underfit else 300
+        params["n_estimators"] = st.slider("Number of trees / estimators", 50, 800, default_estimators, 50)
+        max_depth_options = [None, 2, 3, 4, 5, 8, 12, 16, 24]
+        default_depth = 3 if overfit else 12 if underfit else None
+        params["max_depth"] = st.selectbox(
+            "Maximum depth",
+            max_depth_options,
+            index=max_depth_options.index(default_depth),
+            help="Lower depth reduces overfitting. Higher depth can reduce underfitting.",
+        )
+        params["min_samples_leaf"] = st.slider(
+            "Minimum samples per leaf",
+            1,
+            30,
+            8 if overfit else 1 if underfit else 2,
+            help="Higher values smooth the model and reduce overfitting.",
+        )
+        if model_name == "RandomForest":
+            params["min_samples_split"] = st.slider("Minimum samples to split", 2, 40, 12 if overfit else 2)
+        else:
+            params["learning_rate"] = st.slider(
+                "Learning rate",
+                0.01,
+                0.30,
+                0.04 if overfit else 0.15 if underfit else 0.10,
+                0.01,
+                help="Lower learning rate is safer against overfitting but may need more estimators.",
+            )
+    elif model_name == "DecisionTree":
+        max_depth_options = [None, 2, 3, 4, 5, 8, 12, 16, 24]
+        default_depth = 3 if overfit else 12 if underfit else 5
+        params["max_depth"] = st.selectbox("Maximum depth", max_depth_options, index=max_depth_options.index(default_depth))
+        params["min_samples_leaf"] = st.slider("Minimum samples per leaf", 1, 40, 10 if overfit else 1 if underfit else 3)
+        params["min_samples_split"] = st.slider("Minimum samples to split", 2, 50, 16 if overfit else 2)
+        params["ccp_alpha"] = st.slider("Pruning strength (ccp_alpha)", 0.0, 0.05, 0.01 if overfit else 0.0, 0.001)
+    elif model_name == "KNN":
+        params["n_neighbors"] = st.slider(
+            "Number of neighbors",
+            1,
+            30,
+            12 if overfit else 3 if underfit else 5,
+            help="More neighbors smooths predictions; fewer neighbors increases flexibility.",
+        )
+        params["weights"] = st.selectbox("Neighbor weighting", ["uniform", "distance"], index=0 if overfit else 1)
+    elif model_name == "Ridge":
+        params["alpha"] = st.slider(
+            "Regularization strength (alpha)",
+            0.001,
+            100.0,
+            10.0 if overfit else 0.1 if underfit else 1.0,
+            help="Higher alpha reduces overfitting. Lower alpha increases flexibility.",
+        )
+    elif model_name == "LogisticRegression":
+        params["C"] = st.slider(
+            "Inverse regularization strength (C)",
+            0.01,
+            20.0,
+            0.2 if overfit else 5.0 if underfit else 1.0,
+            help="Lower C means stronger regularization. Higher C increases flexibility.",
+        )
+        params["max_iter"] = st.slider("Maximum iterations", 200, 3000, 1000, 100)
+    elif model_name == "SVR":
+        params["C"] = st.slider("Penalty strength (C)", 0.01, 50.0, 0.5 if overfit else 10.0 if underfit else 1.0)
+        params["epsilon"] = st.slider("Error tolerance (epsilon)", 0.001, 2.0, 0.3 if overfit else 0.05 if underfit else 0.1)
+        params["gamma"] = st.selectbox("Kernel gamma", ["scale", "auto"], index=0)
+    elif model_name == "NeuralNetwork":
+        params["hidden_layers"] = st.slider("Hidden layers", 1, 4, 1 if overfit else 3 if underfit else 2)
+        params["hidden_units"] = st.slider("Units per hidden layer", 8, 256, 32 if overfit else 128 if underfit else 64, 8)
+        params["alpha"] = st.slider("Regularization strength (alpha)", 0.0001, 0.1, 0.01 if overfit else 0.0005 if underfit else 0.001)
+        params["learning_rate_init"] = st.slider("Learning rate", 0.0001, 0.02, 0.001, 0.0001)
+        params["max_iter"] = st.slider("Maximum iterations", 200, 2000, 800 if overfit else 1500 if underfit else 1200, 100)
+
+    return params
 
 
 # -----------------------------------------------------------------------------
@@ -5193,7 +5395,7 @@ with tabs[22]:
             (
                 "What to fix",
                 "Use model-specific knobs",
-                "The recommendation table names hyperparameters such as max_depth, alpha, C, n_neighbors, or learning_rate.",
+                "Use the tuning panel to change max_depth, alpha, C, n_neighbors, learning_rate, and more.",
             ),
         ]
     )
@@ -5224,6 +5426,45 @@ with tabs[22]:
             default=available_fit_models[: min(5, len(available_fit_models))],
             key="fit_models",
         )
+        custom_hyperparameters: dict[str, dict[str, object]] = {}
+        with st.expander("Dynamic Hyperparameter Tuning Panel", expanded=False):
+            st.markdown(
+                "Adjust the model knobs directly, then run diagnostics again to see whether the train-test gap improves."
+            )
+            apply_custom_tuning = st.checkbox(
+                "Apply custom hyperparameters to the next run",
+                value=False,
+                key="fit_apply_custom_tuning",
+            )
+            tuning_goal = st.radio(
+                "Tuning goal",
+                ["Reduce overfitting", "Reduce underfitting", "Manual balanced tuning"],
+                horizontal=True,
+                key="fit_tuning_goal",
+            )
+            if not fit_models:
+                st.info("Select at least one model above before tuning hyperparameters.")
+            else:
+                tune_model = st.selectbox(
+                    "Model to tune",
+                    fit_models,
+                    key="fit_tune_model",
+                    help="Only this model receives the custom hyperparameters in the next diagnostic run.",
+                )
+                st.caption(
+                    "Tip: for overfitting, make the model simpler or add regularization. "
+                    "For underfitting, increase capacity or reduce regularization."
+                )
+                tuned_params = render_hyperparameter_controls(tune_model, fit_task, tuning_goal)
+                if tuned_params:
+                    if apply_custom_tuning:
+                        custom_hyperparameters[tune_model] = tuned_params
+                    st.markdown("##### Active Custom Hyperparameters")
+                    st.json(tuned_params)
+                    if not apply_custom_tuning:
+                        st.caption("Enable the checkbox above to use these values in the next diagnostic run.")
+                else:
+                    st.caption("No custom hyperparameters are available for this model.")
 
         if not fit_features:
             st.info("Select at least one feature.")
@@ -5244,12 +5485,14 @@ with tabs[22]:
                         fit_scale,
                         fit_scaler,
                         fit_models,
+                        custom_hyperparameters,
                     )
                 except Exception as err:
                     st.error(f"Could not run fit diagnostics: {err}")
                 else:
                     st.session_state.fit_diagnostics = diagnostics
                     st.session_state.fit_diagnostics_task = fit_task
+                    st.session_state.fit_custom_hyperparameters = custom_hyperparameters
 
         diagnostics = st.session_state.get("fit_diagnostics")
         if diagnostics is not None and not diagnostics.empty:
@@ -5352,6 +5595,10 @@ with tabs[22]:
             st.markdown("#### What To Fix")
             recommendations = diagnostics[["Model", "Diagnosis", "What to fix"]].copy()
             st.dataframe(recommendations, width="stretch", hide_index=True)
+            active_params = st.session_state.get("fit_custom_hyperparameters", {})
+            if active_params:
+                st.markdown("#### Custom Hyperparameters Used")
+                st.json(active_params)
 
             risky = diagnostics[diagnostics["Diagnosis"].isin(["Overfitting risk", "Underfitting risk", "Poor generalization"])]
             if risky.empty:

@@ -73,7 +73,7 @@ The page also explains why the best model scores higher and why weaker models ma
 
 ### Fit Diagnostics
 
-Checks whether supervised models are overfitting, underfitting, or generalizing reasonably. The page compares train score, test score, train-test gap, cross-validation score, and regression errors where available. It also recommends hyperparameter fixes such as changing `max_depth`, `min_samples_leaf`, `alpha`, `C`, `n_neighbors`, `learning_rate`, or neural-network regularization.
+Checks whether supervised models are overfitting, underfitting, or generalizing reasonably. The page compares train score, test score, train-test gap, cross-validation score, and regression errors where available. It also recommends hyperparameter fixes and includes a dynamic tuning panel where users can directly modify values such as `max_depth`, `min_samples_leaf`, `alpha`, `C`, `n_neighbors`, `learning_rate`, or neural-network regularization before rerunning diagnostics.
 
 ### Model Explainability
 
