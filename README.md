@@ -50,6 +50,12 @@ When preparing a final submission, capture these pages from the running app:
 
 Save screenshots in `docs/assets/screenshots/` if you want to include them in documentation.
 
+You can also open the standalone Paper Review poster:
+
+```text
+docs/paper_review_poster.html
+```
+
 ## Project Structure
 
 ```text

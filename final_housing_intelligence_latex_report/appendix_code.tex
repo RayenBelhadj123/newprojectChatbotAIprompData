@@ -1,0 +1,36 @@
+
+\section{Application Files}
+
+The project package includes the following important files:
+\begin{itemize}
+\item \texttt{streamlit\_app.py}: the main Streamlit application containing the complete analytical platform.
+\item \texttt{us\_home\_price\_analysis\_2004\_2024.csv}: the dataset used by the project.
+\end{itemize}
+
+\section{Main Feature List from the Code}
+
+The code includes modules for data cleaning and cleaning reports, dashboard navigation and custom theme, correlation summaries, supervised regression and classification, model evaluation across multiple algorithms, feature importance, forecasting with lags and rolling variables, theory checks, real-life market-period comparison, OLAP and export, unsupervised learning, reinforcement-learning simulation, AI chatbot and prompt-based interaction, experiment tracking, model registry, production-readiness validation, and business impact reporting.
+
+\section{Selected Code Excerpt}
+
+The following excerpt illustrates the type of model pipeline used in the application. The full source code is included in the ZIP package.
+
+\begin{verbatim}
+steps = [("imputer", SimpleImputer(strategy="median"))]
+if use_scaling:
+    scaler = StandardScaler() if scaler_name == "StandardScaler" else MinMaxScaler()
+    steps.append(("scaler", scaler))
+steps.append(("model", make_model(model_choice, task_type)))
+pipeline = Pipeline(steps)
+pipeline.fit(X_train, y_train)
+predictions = pipeline.predict(X_test)
+\end{verbatim}
+
+\section{How to Run the Streamlit Application}
+
+After installing the required Python packages, the application can be launched with:
+\begin{verbatim}
+streamlit run streamlit_app.py
+\end{verbatim}
+
+The dataset can be uploaded through the dashboard or placed in the expected data folder. The app then allows the user to explore, model, evaluate, forecast, export, and interpret the housing dataset.

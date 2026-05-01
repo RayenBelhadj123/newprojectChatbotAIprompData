@@ -1,0 +1,208 @@
+
+%% Adapted LaTeX report project for Overleaf
+\documentclass[a4paper, oneside, 12pt, final]{extreport}
+\usepackage{pgfgantt}
+\usepackage{graphicx}
+\usepackage{makeidx}
+\usepackage{tcolorbox}
+\usepackage{amsthm}
+\usepackage{etoolbox}
+\usepackage[nottoc]{tocbibind}
+\usepackage{ifxetex}
+\usepackage[lined,boxed,commentsnumbered, english, ruled,vlined,linesnumbered]{algorithm2e}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{float}
+\usepackage{url}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage[hidelinks]{hyperref}
+\usepackage[acronym,toc,section=chapter]{glossaries}
+\makeglossaries
+\makeindex
+
+\ifxetex
+  \usepackage{fontspec}
+\else
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{lmodern}
+\fi
+
+\newtheorem{theorem}{Theorem}[chapter]
+\newtheorem{definition}{Definition}[chapter]
+\newtheorem{exemple}{Example}[chapter]
+
+\providecommand{\keywords}[1]{\textbf{\textit{Keywords---}} #1}
+\providecommand{\keywordss}[1]{\textbf{\textit{Keywords---}} #1}
+
+\textwidth 18cm
+\textheight 24cm
+\topmargin -0.5cm
+\oddsidemargin -1cm
+\parindent 0cm
+
+\newcommand{\reportTitle} {\textsc{Tutored Project Report}}
+\newcommand{\reportAuthor} {Ayoub \textsc{Naouech} \\ Rayen \textsc{Belhadj}}
+\newcommand{\reportSubject} {US Housing Market Analysis and Prediction Using Data Mining and Machine Learning}
+\newcommand{\studyDepartment} {Project Tutored -- Data Mining and Machine Learning}
+\newcommand{\ITBS} {\\ IT Business School}
+\newcommand{\AU} {\centering \textbf{Academic Year 2025--2026}}
+
+\newacronym{dm}{DM}{Data Mining}
+\newacronym{ml}{ML}{Machine Learning}
+\newacronym{eda}{EDA}{Exploratory Data Analysis}
+\newacronym{rmse}{RMSE}{Root Mean Squared Error}
+\newacronym{mae}{MAE}{Mean Absolute Error}
+\newacronym{svm}{SVM}{Support Vector Machine}
+\newacronym{olap}{OLAP}{Online Analytical Processing}
+\newacronym{pca}{PCA}{Principal Component Analysis}
+\newacronym{dbscan}{DBSCAN}{Density-Based Spatial Clustering of Applications with Noise}
+\newacronym{llm}{LLM}{Large Language Model}
+
+\title{\reportSubject}
+\author{\reportAuthor}
+
+\pagenumbering{roman}
+
+\begin{document}
+\thispagestyle{empty}
+\begin{titlepage}
+\begin{center}
+\includegraphics[scale=0.20]{embleme.jpg}
+\vspace{0.5cm}
+
+{%
+  \fontsize{9pt}{9pt}\selectfont%
+  \begin{tabular}{c}
+    Republic of Tunisia \\
+    Ministry of Higher Education and Scientific Research \ITBS{}\\ 
+  \end{tabular}
+}
+
+\vspace{1cm}
+\includegraphics[scale=0.1]{logonoir.png}
+
+\vspace{15pt}
+{\textit{Tutored Project submitted in partial fulfillment of the requirements for the}}\\
+
+\vspace{10pt}
+{\textbf{\large Data Mining and Machine Learning Project}}\\
+
+\vspace{10pt}
+\textbf{\textit{Prepared by}}\\
+\vspace{10pt}
+{\bfseries\Large\sc \reportAuthor}\\
+
+\vspace{12pt}
+{\fontsize{22pt}{22pt}\selectfont
+\rule{0.65\textwidth}{.4pt}\\
+\vspace{8pt}
+\reportSubject{}\\
+\vspace{8pt}
+\rule{0.65\textwidth}{.4pt}
+}
+
+\vspace{15pt}
+\begin{tabular}{ll}
+\textbf{Supervisor:} & \textbf{Kaouther Ben Ali}
+\end{tabular}
+
+\vspace{40pt}
+\textbf{\textit{Institution}}\\
+\vspace{5pt}
+\studyDepartment
+
+\vspace{15pt}
+\includegraphics[scale=0.08]{logonoir.png}
+\end{center}
+\vspace{30pt}
+\AU\\
+\end{titlepage}
+
+\input{Accord_depot}
+
+\chapter*{Dedication}
+\thispagestyle{empty}
+\begin{center}
+{\it
+To our families, teachers, and everyone who supported us throughout this project.\\
+Their encouragement, patience, and trust made this work possible.
+}
+\end{center}
+
+\chapter*{Acknowledgment}
+\addcontentsline{toc}{chapter}{Acknowledgment}
+We would like to express our sincere gratitude to our supervisor and all our teachers for their guidance and support.
+We also thank our families and friends for their encouragement during the completion of this tutored project.
+
+\input{abstract.tex}
+
+\tableofcontents
+\listoffigures
+\listoftables
+
+\clearpage
+\pagenumbering{arabic}
+
+\chapter*{General Introduction}
+\markboth{\MakeUppercase{General Introduction}}{}%
+\addcontentsline{toc}{chapter}{General Introduction}
+\input{introduction.tex}
+
+\chapter{General Context of the Project}
+\label{chap:chapterone}
+\input{chapitre1.tex}
+
+\chapter{State of the Art}
+\label{chap:2}
+\input{chapitre2.tex}
+
+\chapter{System Design and Implementation}
+\label{chap:3}
+\input{chapitre3.tex}
+
+\chapter{Results and Discussion}
+\label{chap:4}
+\input{chapitre4.tex}
+
+\chapter*{General Conclusion and Future Work}
+\label{chap:conclusion}
+\markboth{\MakeUppercase{General Conclusion and Future Work}}{}%
+\addcontentsline{toc}{chapter}{General Conclusion and Future Work}
+This report presented a complete data mining and machine learning workflow for analyzing and predicting housing market behavior in the United States.
+The work combined business understanding, exploratory data analysis, preprocessing, predictive modeling, dashboard design, and forecasting.
+The results showed that macroeconomic indicators such as inflation, unemployment, and interest rates are strongly linked to housing market trends.
+Among the tested models, Random Forest delivered stronger predictive performance, while Ridge Regression remained valuable because of its simplicity and interpretability.
+
+The developed Streamlit dashboard also demonstrated the importance of interactive data visualization in supporting understanding and decision-making.
+Although the project produced encouraging results, several improvements remain possible.
+Future work may include adding larger datasets, using real-time data sources, testing advanced time-series models, and extending the dashboard with scenario simulation features.
+
+The project integrates OLAP analysis, an AI chatbot, prompt-based interaction, unsupervised learning, reinforcement-learning simulation, experiment tracking, model registry logic, production-readiness validation, paper review, and business impact analysis. These components transform the dashboard into a complete housing intelligence platform.
+
+The main lesson from the project is that a valuable data science solution must combine prediction, interpretation, usability, and governance. A model score alone is not enough. Users also need to understand the data, compare periods, test scenarios, detect hidden patterns, and interpret results in relation to real economic theory. The Streamlit application addresses these needs by connecting technical analysis with decision support.
+
+Future work should focus on improving the chatbot grounding, adding regional housing datasets, integrating live economic APIs, implementing SHAP explainability, saving experiments in a persistent database, and deploying the application on a cloud platform. With these improvements, the project could become a stronger professional prototype for housing-market monitoring and economic decision support.
+
+\bibliographystyle{plain}
+\bibliography{Biblio}
+
+\appendix
+\chapter{Appendices}
+\section{How to add your own screenshots}
+Replace the example figures in this project with screenshots from your Streamlit dashboard exported as PNG or JPG.
+Then adjust the filenames inside the corresponding figure environments.
+
+\section{Main code excerpt}
+The full Python application is included in this project package. Selected excerpts and running instructions are provided below.
+
+\input{appendix_code.tex}
+
+\printglossaries
+\printindex
+\end{document}

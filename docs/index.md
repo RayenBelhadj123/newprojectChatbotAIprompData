@@ -125,6 +125,12 @@ Compares the project results with outside research and current market context. T
 - NAR March 2026 existing-home sales context
 - Case-Shiller / FRED index context
 
+A standalone poster version is available at:
+
+```text
+docs/paper_review_poster.html
+```
+
 ### Code Lab
 
 Includes an "Enter a code prompt" box to generate Streamlit code snippets. It can use an OpenAI API key or local templates.
