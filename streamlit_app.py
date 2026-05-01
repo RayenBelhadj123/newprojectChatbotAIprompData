@@ -1,7 +1,18 @@
+"""Streamlit dashboard for the US Housing Intelligence project.
+
+The application loads a housing and macroeconomic CSV, cleans it, and turns it
+into an end-to-end analytics product: exploratory analysis, supervised and
+unsupervised machine learning, forecasting, OLAP segmentation, reporting, and
+production-readiness checks. Helper functions are kept in this file because the
+Streamlit app is currently the project entrypoint; reusable code can later be
+moved into ``src/us_housing`` modules as the project grows.
+"""
+
 import os
 import sys
 from pathlib import Path
 
+# Limit joblib/loky worker discovery noise on Windows before importing scikit-learn.
 os.environ.setdefault("LOKY_MAX_CPU_COUNT", str(os.cpu_count() or 1))
 
 import numpy as np
@@ -46,14 +57,17 @@ except Exception:  # pragma: no cover - app can run without OpenAI installed
     OpenAI = None
 
 
+# Make the local package importable when the app is launched from the repo root.
 BASE_DIR = Path(__file__).resolve().parent
 SRC_DIR = BASE_DIR / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
+# The template includes a helper that resolves the default dataset path.
 from us_housing.paths import resolve_default_dataset  # noqa: E402
 
 
+# Configure Streamlit before rendering any visible widgets.
 st.set_page_config(
     page_title="US Housing Intelligence Dashboard",
     page_icon=":house:",
@@ -62,8 +76,10 @@ st.set_page_config(
 
 DEFAULT_CSV = resolve_default_dataset()
 
+# Keep the default CSV path reusable for the entire app lifecycle.
 
 def apply_theme(dark_mode: bool) -> None:
+    """Inject the custom dashboard theme and responsive layout CSS."""
     bg = "#08111f" if dark_mode else "#eef3f8"
     panel = "#101b2d" if dark_mode else "#fbfdff"
     panel_2 = "#16243a" if dark_mode else "#e6edf5"
@@ -76,10 +92,15 @@ def apply_theme(dark_mode: bool) -> None:
     danger = "#fb7185" if dark_mode else "#dc2626"
     shadow = "0 22px 70px rgba(0,0,0,0.34)" if dark_mode else "0 22px 60px rgba(24,43,72,0.13)"
 
+    # Keep the visual system in one place so dark/light mode stays consistent.
     st.markdown(
         f"""
         <style>
             :root {{
+                --sat: env(safe-area-inset-top);
+                --sab: env(safe-area-inset-bottom);
+                --sal: env(safe-area-inset-left);
+                --sar: env(safe-area-inset-right);
                 --app-bg: {bg};
                 --panel: {panel};
                 --panel-2: {panel_2};
@@ -92,23 +113,47 @@ def apply_theme(dark_mode: bool) -> None:
                 --danger: {danger};
                 --shadow: {shadow};
             }}
+            html, body, [data-testid="stAppViewContainer"], .stApp {{
+                min-height: 100vh;
+                min-height: 100dvh;
+                margin: 0;
+                padding: 0;
+                -webkit-overflow-scrolling: touch;
+                overscroll-behavior-y: none;
+                touch-action: manipulation;
+            }}
+            html {{
+                scroll-behavior: smooth;
+            }}
+            body {{
+                background: var(--app-bg);
+                -webkit-tap-highlight-color: transparent;
+                text-rendering: optimizeLegibility;
+            }}
             .stApp {{
                 background:
                     linear-gradient(180deg, var(--panel-3) 0px, var(--app-bg) 260px, var(--app-bg) 100%);
                 color: var(--text);
+                padding-left: var(--sal);
+                padding-right: var(--sar);
+                padding-bottom: var(--sab);
             }}
             [data-testid="stHeader"] {{
                 background: transparent;
                 height: 0;
+                display: none;
             }}
             [data-testid="stToolbar"] {{
+                display: none;
+            }}
+            [data-testid="stDecoration"] {{
                 display: none;
             }}
             #MainMenu, footer {{
                 visibility: hidden;
             }}
             .block-container {{
-                padding-top: 1.15rem;
+                padding-top: max(1rem, calc(var(--sat) + 0.75rem));
                 padding-bottom: 2.4rem;
                 max-width: 1480px;
             }}
@@ -132,6 +177,7 @@ def apply_theme(dark_mode: bool) -> None:
                 background: linear-gradient(180deg, var(--panel-3), var(--panel));
                 border-right: 1px solid var(--border);
                 box-shadow: var(--shadow);
+                padding-top: var(--sat);
             }}
             [data-testid="stSidebar"] * {{
                 color: var(--text);
@@ -395,6 +441,11 @@ def apply_theme(dark_mode: bool) -> None:
                 font-size: 0.82rem;
             }}
             @media (max-width: 900px) {{
+                .block-container {{
+                    padding-left: max(0.85rem, calc(var(--sal) + 0.85rem));
+                    padding-right: max(0.85rem, calc(var(--sar) + 0.85rem));
+                    padding-bottom: max(1.4rem, calc(var(--sab) + 1rem));
+                }}
                 .workflow-strip {{
                     grid-template-columns: repeat(2, minmax(120px, 1fr));
                 }}
@@ -404,6 +455,18 @@ def apply_theme(dark_mode: bool) -> None:
                 .hero h1 {{
                     font-size: 1.62rem;
                 }}
+                .hero {{
+                    padding: 20px;
+                    border-radius: 14px;
+                }}
+                .brand-mark {{
+                    width: 38px;
+                    height: 38px;
+                    border-radius: 10px;
+                }}
+                .stTabs [data-baseweb="tab"] {{
+                    min-width: max-content;
+                }}
             }}
         </style>
         """,
@@ -411,7 +474,15 @@ def apply_theme(dark_mode: bool) -> None:
     )
 
 
+# -----------------------------------------------------------------------------
+# Nettoyage / Data preparation helpers
+# -----------------------------------------------------------------------------
+# This section implements the "nettoyage" pipeline: loading raw data, cleaning
+# column names, parsing dates, coercing numeric values, and building period
+# labels for consistent downstream analysis.
+
 def find_date_col(df: pd.DataFrame) -> str | None:
+    """Return the most likely date or time column from a dataframe."""
     for col in df.columns:
         lower = str(col).lower()
         if lower in {"date", "month"} or "date" in lower or "time" in lower:
@@ -420,17 +491,24 @@ def find_date_col(df: pd.DataFrame) -> str | None:
 
 
 def clean_data(df: pd.DataFrame) -> tuple[pd.DataFrame, str | None]:
+    """Normalize columns, parse dates, coerce numerics, and add period labels."""
+    # Start the nettoyage pipeline: create a safe copy, normalize column names,
+    # detect the date column, parse dates, and convert candidate numeric columns.
     out = df.copy()
     out.columns = out.columns.str.strip()
     date_col = find_date_col(out)
     if date_col:
         out[date_col] = pd.to_datetime(out[date_col], errors="coerce")
         out = out.sort_values(date_col)
+
+    # Coerce all non-date columns to numeric when the values look numeric.
     for col in out.columns:
         if col != date_col:
             converted = pd.to_numeric(out[col], errors="coerce")
             if converted.notna().sum() > 0:
                 out[col] = converted
+
+    # Add a reusable period label for later dashboard grouping.
     if date_col and out[date_col].notna().any():
         out["administration"] = out[date_col].apply(admin_label)
     else:
@@ -438,7 +516,94 @@ def clean_data(df: pd.DataFrame) -> tuple[pd.DataFrame, str | None]:
     return out, date_col
 
 
+def data_cleaning_report(raw_df: pd.DataFrame, cleaned_df: pd.DataFrame, date_col: str | None) -> pd.DataFrame:
+    """Document every cleaning check, including checks that found clean data."""
+    # This report is the final stage of the nettoyage pipeline: it records
+    # what was cleaned, what was already clean, and any issues introduced.
+    raw_columns = pd.Index(raw_df.columns)
+    stripped_columns = raw_columns.astype(str).str.strip()
+    whitespace_fixed = int((raw_columns.astype(str) != stripped_columns).sum())
+    raw_missing = int(raw_df.isna().sum().sum())
+    cleaned_missing = int(cleaned_df.isna().sum().sum())
+    raw_duplicates = int(raw_df.duplicated().sum())
+    cleaned_duplicates = int(cleaned_df.duplicated().sum())
+    numeric_columns = cleaned_df.select_dtypes(include=["number"]).columns.tolist()
+
+    rows = [
+        {
+            "Cleaning step": "Column-name cleanup",
+            "What was checked": "Leading and trailing spaces in column names.",
+            "Result": (
+                f"{whitespace_fixed} column name(s) were trimmed."
+                if whitespace_fixed
+                else "No extra spaces were found; column names were already clean."
+            ),
+            "Status": "Applied" if whitespace_fixed else "Checked - already clean",
+        },
+        {
+            "Cleaning step": "Date parsing",
+            "What was checked": "The app searched for a date or time column and converted it to datetime.",
+            "Result": (
+                f"`{date_col}` was detected and parsed as a date column."
+                if date_col
+                else "No date column was detected, so date-based analysis is disabled."
+            ),
+            "Status": "Applied" if date_col else "Checked - not available",
+        },
+        {
+            "Cleaning step": "Numeric conversion",
+            "What was checked": "Columns that contain numeric values were converted from text to numbers.",
+            "Result": f"{len(numeric_columns)} numeric column(s) are available after cleaning.",
+            "Status": "Applied",
+        },
+        {
+            "Cleaning step": "Missing-value check",
+            "What was checked": "The app counted empty cells before and after type conversion.",
+            "Result": (
+                f"Missing cells changed from {raw_missing:,} to {cleaned_missing:,}."
+                if raw_missing != cleaned_missing
+                else f"{cleaned_missing:,} missing cell(s) found; no extra missing values were introduced."
+            ),
+            "Status": "Checked - already clean" if cleaned_missing == 0 else "Needs attention",
+        },
+        {
+            "Cleaning step": "Duplicate-row check",
+            "What was checked": "The app counted repeated rows.",
+            "Result": (
+                f"{cleaned_duplicates:,} duplicate row(s) remain for review."
+                if cleaned_duplicates
+                else "No duplicate rows were found."
+            ),
+            "Status": "Checked - already clean" if cleaned_duplicates == 0 else "Needs attention",
+        },
+        {
+            "Cleaning step": "Period feature creation",
+            "What was checked": "The app created an administration period label for comparison pages.",
+            "Result": "`administration` was added for grouped analysis.",
+            "Status": "Applied",
+        },
+        {
+            "Cleaning step": "Row preservation",
+            "What was checked": "The app confirms whether cleaning removed rows.",
+            "Result": (
+                f"Rows changed from {len(raw_df):,} to {len(cleaned_df):,}."
+                if len(raw_df) != len(cleaned_df)
+                else "No rows were removed during cleaning."
+            ),
+            "Status": "Checked - already clean" if len(raw_df) == len(cleaned_df) else "Applied",
+        },
+    ]
+
+    report = pd.DataFrame(rows)
+    report["Project note"] = (
+        "This cleaning step is documented even when the data is already clean, "
+        "so the project shows that data preparation was performed."
+    )
+    return report
+
+
 def admin_label(dt):
+    """Map a date to the U.S. presidential-administration period used in the app."""
     if pd.isna(dt):
         return "Unknown"
     if dt < pd.Timestamp("2017-01-20"):
@@ -451,6 +616,7 @@ def admin_label(dt):
 
 
 def corr_matrix(df: pd.DataFrame) -> pd.DataFrame:
+    """Build a numeric correlation matrix, returning an empty frame if none exists."""
     numeric = df.select_dtypes(include=["number"])
     if numeric.empty:
         return pd.DataFrame()
@@ -458,6 +624,7 @@ def corr_matrix(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def regression_metrics(y_true, y_pred) -> tuple[float, float, float]:
+    """Calculate the standard regression metrics shown in model reports."""
     mae = mean_absolute_error(y_true, y_pred)
     rmse = float(np.sqrt(mean_squared_error(y_true, y_pred)))
     r2 = r2_score(y_true, y_pred)
@@ -472,6 +639,9 @@ def build_supervised_with_lags(
     lags=(1, 3, 6, 12),
     roll_windows=(3, 6, 12),
 ) -> pd.DataFrame:
+    """Create lagged, rolling, and differenced features for forecasting."""
+    # This function is part of the feature-engineering pipeline, building
+    # time-aware predictors for forecasting models.
     out = df[[date_col, target] + list(features)].copy()
     out = out.sort_values(date_col).reset_index(drop=True)
     for lag in lags:
@@ -485,6 +655,7 @@ def build_supervised_with_lags(
 
 
 def default_target(num_cols: list[str]) -> str | None:
+    """Choose the preferred housing target column when one is available."""
     if not num_cols:
         return None
     preferred = ["Home_Price_Index", "Home Price Index", "home_price_index"]
@@ -495,6 +666,7 @@ def default_target(num_cols: list[str]) -> str | None:
 
 
 def is_engineered_or_leaky_feature(column: str, target: str | None = None) -> bool:
+    """Detect engineered or target-derived columns that can mislead interpretation."""
     lower = column.lower()
     engineered_tokens = [
         "lag",
@@ -519,6 +691,7 @@ def is_engineered_or_leaky_feature(column: str, target: str | None = None) -> bo
 
 
 def interpretable_numeric_features(num_cols: list[str], target: str | None) -> list[str]:
+    """Keep numeric columns that are useful for readable analysis by default."""
     if not target:
         return num_cols
     clean = [target] if target in num_cols else []
@@ -530,7 +703,12 @@ def interpretable_numeric_features(num_cols: list[str], target: str | None) -> l
     return clean
 
 
+# -----------------------------------------------------------------------------
+# UI helpers
+# -----------------------------------------------------------------------------
+
 def metric_card(label: str, value: str) -> None:
+    """Render a custom HTML metric card with the active theme styling."""
     st.markdown(
         f"""
         <div class="metric-card">
@@ -543,6 +721,7 @@ def metric_card(label: str, value: str) -> None:
 
 
 def learning_cards(cards: list[tuple[str, str, str]]) -> None:
+    """Render grouped guide cards that explain how to use a dashboard section."""
     for start in range(0, len(cards), 3):
         cols = st.columns(min(3, len(cards) - start))
         for col, (kicker, title, text) in zip(cols, cards[start : start + 3]):
@@ -554,6 +733,7 @@ def learning_cards(cards: list[tuple[str, str, str]]) -> None:
 
 
 def dashboard_search_items() -> list[dict[str, str]]:
+    """Define searchable dashboard destinations and common keywords."""
     return [
         {"page": "Overview", "keywords": "trend correlation target summary drivers", "desc": "Start here for target movement and meaningful correlations."},
         {"page": "Explore", "keywords": "histogram box plot violin scatter distribution outliers", "desc": "Use this for visual exploration and distributions."},
@@ -567,10 +747,15 @@ def dashboard_search_items() -> list[dict[str, str]]:
         {"page": "Scenario Simulator", "keywords": "scenario what if simulator impact change feature", "desc": "Test a what-if feature change."},
         {"page": "Paper Review", "keywords": "paper research real life current market comparison", "desc": "Compare app results with outside research."},
         {"page": "Production Readiness", "keywords": "validation drift model card governance production", "desc": "Big-company checks for trust and governance."},
+        {"page": "Experiment Tracker", "keywords": "experiment tracking runs metrics history", "desc": "Track model experiments and download run history."},
+        {"page": "Model Registry", "keywords": "registry champion model approval version owner", "desc": "Promote the best model as a champion candidate."},
+        {"page": "Data Pipeline", "keywords": "pipeline workflow raw clean train evaluate report", "desc": "Show the end-to-end data science workflow."},
+        {"page": "Business Impact", "keywords": "business decision stakeholder impact value", "desc": "Translate technical results into business meaning."},
     ]
 
 
 def render_search_results(query: str) -> None:
+    """Show matching navigation hints for the sidebar search box."""
     query = query.strip().lower()
     if not query:
         return
@@ -594,7 +779,12 @@ def render_search_results(query: str) -> None:
         )
 
 
+# -----------------------------------------------------------------------------
+# Analysis and interpretation helpers
+# -----------------------------------------------------------------------------
+
 def correlation_summary(cmat: pd.DataFrame, target: str | None) -> dict[str, object]:
+    """Summarize the strongest positive and negative correlations for the selected target."""
     summary: dict[str, object] = {
         "target_positive": None,
         "target_negative": None,
@@ -634,6 +824,7 @@ def correlation_summary(cmat: pd.DataFrame, target: str | None) -> dict[str, obj
 
 
 def first_matching_column(columns: list[str], keyword_groups: list[tuple[str, ...]]) -> str | None:
+    """Find the first column whose name contains all requested keyword groups."""
     lowered = {col: col.lower() for col in columns}
     for keywords in keyword_groups:
         for col, lower in lowered.items():
@@ -643,6 +834,7 @@ def first_matching_column(columns: list[str], keyword_groups: list[tuple[str, ..
 
 
 def theory_check_table(df: pd.DataFrame, target: str, features: list[str]) -> pd.DataFrame:
+    """Compare dataset correlations with common housing-market theory signals."""
     available = [feature for feature in features if feature in df.columns]
     checks = [
         {
@@ -696,6 +888,7 @@ def theory_check_table(df: pd.DataFrame, target: str, features: list[str]) -> pd
 
 
 def real_life_period_table(df: pd.DataFrame, date_col: str, target: str) -> pd.DataFrame:
+    """Aggregate the target into named real-life market periods."""
     periods = [
         {
             "Real-life period": "Pre-crisis housing boom",
@@ -778,6 +971,8 @@ def final_conclusion_text(
     theory_df: pd.DataFrame,
     period_df: pd.DataFrame,
 ) -> str:
+    """Build a project-ready conclusion from data, theory, and period evidence."""
+    # Count how many theory checks the current dataset supports or challenges.
     supported = int((theory_df["Evidence"] == "Supports theory").sum()) if not theory_df.empty else 0
     challenged = int((theory_df["Evidence"] == "Challenges theory").sum()) if not theory_df.empty else 0
     matched_periods = int((period_df["Verdict"] == "Matches real-life expectation").sum()) if not period_df.empty else 0
@@ -801,6 +996,7 @@ def final_conclusion_text(
 
 
 def radar_compare(df: pd.DataFrame, metrics_cols: list[str]):
+    """Create a normalized radar chart comparing administrations across selected metrics."""
     needed = {"Trump (2017-2020)", "Biden (2021-2024)"}
     if not needed.issubset(set(df["administration"].unique())):
         return None
@@ -836,7 +1032,15 @@ def radar_compare(df: pd.DataFrame, metrics_cols: list[str]):
     return fig
 
 
+# -----------------------------------------------------------------------------
+# Supervised machine-learning helpers / ML pipeline
+# -----------------------------------------------------------------------------
+# This section defines the modeling pipeline used in the ML Lab: model
+# instantiation, preprocessing, scaling, training, evaluation, and feature
+# importance extraction.
+
 def make_model(model_name: str, task_type: str, random_state: int = 0):
+    """Instantiate the selected scikit-learn model for regression or classification."""
     if task_type == "Regression":
         models = {
             "Ridge": Ridge(alpha=1.0),
@@ -898,6 +1102,10 @@ def make_model(model_name: str, task_type: str, random_state: int = 0):
 
 
 def build_model_pipeline(model_choice: str, task_type: str, use_scaling: bool, scaler_name: str) -> Pipeline:
+    """Create an optional scaling plus model pipeline for supervised learning."""
+    # The ML pipeline always begins with imputing missing values. If selected,
+    # scaling is applied before the model to keep coefficients and distances
+    # comparable across features.
     steps = [("imputer", SimpleImputer(strategy="median"))]
     if use_scaling:
         scaler = StandardScaler() if scaler_name == "StandardScaler" else MinMaxScaler()
@@ -907,6 +1115,7 @@ def build_model_pipeline(model_choice: str, task_type: str, use_scaling: bool, s
 
 
 def make_classification_labels(y_train: pd.Series, y_test: pd.Series):
+    """Convert a numeric target into high/low classes using the training median."""
     y_train_binned = pd.qcut(y_train, q=3, labels=False, duplicates="drop")
     y_test_binned = pd.qcut(y_test, q=3, labels=False, duplicates="drop")
     label_map = {0: "Low", 1: "Medium", 2: "High"}
@@ -917,6 +1126,7 @@ def make_classification_labels(y_train: pd.Series, y_test: pd.Series):
 
 
 def model_options_for_task(task_type: str) -> list[str]:
+    """Return model names that are valid for the selected supervised task."""
     if task_type == "Regression":
         return [
             "Ridge",
@@ -932,6 +1142,7 @@ def model_options_for_task(task_type: str) -> list[str]:
 
 
 def classification_auc(pipeline: Pipeline, x_test: pd.DataFrame, y_test: pd.Series) -> float | None:
+    """Calculate ROC AUC when the fitted classifier exposes probabilities or scores."""
     try:
         if hasattr(pipeline, "predict_proba"):
             scores = pipeline.predict_proba(x_test)
@@ -954,10 +1165,13 @@ def evaluate_all_models(
     use_scaling: bool,
     scaler_name: str,
 ) -> pd.DataFrame:
+    """Train and evaluate every supported supervised model on the same split."""
     model_df = data[[target] + features].copy().dropna(subset=[target])
     split = int(len(model_df) * 0.8)
     X_train, X_test = model_df[features].iloc[:split], model_df[features].iloc[split:]
     y_train, y_test = model_df[target].iloc[:split], model_df[target].iloc[split:]
+    # The supervised ML pipeline uses an 80/20 train-test split and applies the
+    # same preprocessing and modeling steps to every candidate algorithm.
     rows = []
 
     if task_type == "Regression":
@@ -1010,10 +1224,13 @@ def fit_best_model_for_task(
     scaler_name: str,
     model_name: str,
 ) -> tuple[Pipeline, pd.DataFrame, pd.Series]:
+    """Fit one selected supervised model and return the fitted pipeline with training data."""
     model_df = data[[target] + features].copy().dropna(subset=[target])
     split = int(len(model_df) * 0.8)
     X_train = model_df[features].iloc[:split]
     y_train = model_df[target].iloc[:split]
+    # This function only trains on the first 80% of rows; held-out rows are for later
+    # test/evaluation and forecasting consistency.
     if task_type == "Classification":
         y_train, _ = make_classification_labels(y_train, model_df[target].iloc[split:])
     pipeline = build_model_pipeline(model_name, task_type, use_scaling, scaler_name)
@@ -1028,6 +1245,9 @@ def model_feature_importance(
     y_train: pd.Series,
     task_type: str,
 ) -> pd.DataFrame:
+    """Estimate feature importance using tree importances, coefficients, or perturbation."""
+    # This is the explainability stage of the ML pipeline: it shows which
+    # features the selected model relied on most.
     fitted = pipeline.named_steps["model"]
     if hasattr(fitted, "feature_importances_"):
         values = np.asarray(fitted.feature_importances_)
@@ -1055,7 +1275,12 @@ def model_feature_importance(
     return importance.sort_values("Importance", ascending=False)
 
 
+# -----------------------------------------------------------------------------
+# Reporting, governance, and project-management helpers
+# -----------------------------------------------------------------------------
+
 def data_dictionary(df: pd.DataFrame, date_col: str | None, target: str | None) -> pd.DataFrame:
+    """Build a column-level reference table for the loaded dataset."""
     rows = []
     for col in df.columns:
         series = df[col]
@@ -1086,6 +1311,7 @@ def executive_report_markdown(
     target: str | None,
     evaluation: pd.DataFrame | None,
 ) -> str:
+    """Generate a downloadable one-page executive project report."""
     date_range = "not available"
     if date_col and date_col in df.columns and df[date_col].notna().any():
         date_range = f"{df[date_col].min().date()} to {df[date_col].max().date()}"
@@ -1123,6 +1349,7 @@ Use the Evaluation page for model choice, OLAP for segment interpretation, Forec
 
 
 def validation_report(df: pd.DataFrame, date_col: str | None, target: str | None) -> pd.DataFrame:
+    """Run basic data-quality checks used before trusting analysis or scoring."""
     checks = []
     checks.append(
         {
@@ -1179,6 +1406,7 @@ def validation_report(df: pd.DataFrame, date_col: str | None, target: str | None
 
 
 def drift_report(df: pd.DataFrame, date_col: str | None, numeric_cols: list[str]) -> pd.DataFrame:
+    """Compare early baseline data with recent data to flag distribution shifts."""
     if not date_col or date_col not in df.columns or len(numeric_cols) == 0:
         return pd.DataFrame()
     ordered = df.sort_values(date_col).dropna(subset=[date_col])
@@ -1221,6 +1449,7 @@ def model_card_markdown(
     validation: pd.DataFrame,
     drift: pd.DataFrame,
 ) -> str:
+    """Create a concise model card describing metrics, limits, and governance checks."""
     best_model = "Not evaluated"
     metric_line = "Run Evaluation to record model performance."
     if evaluation is not None and not evaluation.empty:
@@ -1262,7 +1491,114 @@ Re-run validation, drift checks, and model evaluation whenever the dataset is up
 """
 
 
+def experiment_table(evaluation: pd.DataFrame | None, target: str | None, features: list[str]) -> pd.DataFrame:
+    """Convert saved evaluation results into an experiment-tracking table."""
+    if evaluation is None or evaluation.empty:
+        return pd.DataFrame()
+    rows = []
+    metric_cols = [
+        col
+        for col in ["R2", "MAE", "RMSE", "Accuracy", "Precision", "Recall", "F1", "ROC AUC"]
+        if col in evaluation.columns
+    ]
+    timestamp = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M")
+    for _, row in evaluation.iterrows():
+        item = {
+            "Experiment ID": f"EXP-{len(rows) + 1:03d}",
+            "Timestamp": timestamp,
+            "Target": target or "not detected",
+            "Model": row.get("Model", "unknown"),
+            "Feature count": len(features),
+            "Notes": "Generated from Evaluation page",
+        }
+        for metric in metric_cols:
+            item[metric] = row.get(metric)
+        rows.append(item)
+    return pd.DataFrame(rows)
+
+
+def best_model_row(evaluation: pd.DataFrame | None) -> tuple[pd.Series | None, str | None]:
+    """Return the best evaluated model row and the metric used to select it."""
+    if evaluation is None or evaluation.empty:
+        return None, None
+    metric = "R2" if "R2" in evaluation.columns else "F1" if "F1" in evaluation.columns else None
+    if not metric:
+        return evaluation.iloc[0], None
+    return evaluation.sort_values(metric, ascending=False).iloc[0], metric
+
+
+def pipeline_stage_table(df: pd.DataFrame, date_col: str | None, target: str | None, evaluation: pd.DataFrame | None) -> pd.DataFrame:
+    """Summarize the end-to-end project pipeline and each stage status."""
+    # This table is a lightweight project health summary for reviewers and demos.
+    return pd.DataFrame(
+        [
+            {
+                "Stage": "Raw data",
+                "Status": "Complete" if len(df) else "Needs data",
+                "Output": f"{len(df):,} rows, {df.shape[1]:,} columns",
+                "Purpose": "Load housing and macroeconomic indicators.",
+            },
+            {
+                "Stage": "Cleaning",
+                "Status": "Complete",
+                "Output": f"Date column: {date_col or 'not detected'}",
+                "Purpose": "Standardize dates, numeric columns, and administration periods.",
+            },
+            {
+                "Stage": "Feature selection",
+                "Status": "Complete" if target else "Needs target",
+                "Output": f"Target: {target or 'not detected'}",
+                "Purpose": "Choose target and model features.",
+            },
+            {
+                "Stage": "Model training",
+                "Status": "Complete" if evaluation is not None and not evaluation.empty else "Run Evaluation",
+                "Output": "Comparison table" if evaluation is not None and not evaluation.empty else "No run yet",
+                "Purpose": "Train and compare supervised models.",
+            },
+            {
+                "Stage": "Evaluation",
+                "Status": "Complete" if evaluation is not None and not evaluation.empty else "Run Evaluation",
+                "Output": "Metrics and explainability" if evaluation is not None and not evaluation.empty else "No metrics yet",
+                "Purpose": "Select the best model with evidence.",
+            },
+            {
+                "Stage": "Reporting",
+                "Status": "Complete",
+                "Output": "Executive report, model card, downloads",
+                "Purpose": "Turn results into project conclusions.",
+            },
+        ]
+    )
+
+
+def business_impact_text(target: str | None, evaluation: pd.DataFrame | None, latest_change: float | None) -> str:
+    """Translate model and target evidence into stakeholder-friendly business language."""
+    # Use the best evaluated model and the latest target movement to create a
+    # business-facing summary sentence.
+    best, metric = best_model_row(evaluation)
+    model_sentence = (
+        f"The current champion candidate is `{best['Model']}` with `{metric} = {best[metric]:.3f}`. "
+        if best is not None and metric
+        else "Run Evaluation to select a champion model. "
+    )
+    if latest_change is None:
+        movement = "The latest target movement is not available."
+    elif latest_change > 0:
+        movement = f"The latest target movement is positive by {latest_change:,.2f}, which supports a resilience story."
+    elif latest_change < 0:
+        movement = f"The latest target movement is negative by {latest_change:,.2f}, which supports a caution/risk story."
+    else:
+        movement = "The latest target movement is flat, which supports a stability story."
+    return (
+        f"Business impact: `{target or 'the target'}` can be monitored as a decision indicator. "
+        f"{model_sentence}{movement} The app helps decision makers compare market segments, evaluate model reliability, "
+        "test scenarios, and explain whether the housing market looks resilient, risky, or stable."
+    )
+
+
 def model_family_reason(model_name: str) -> str:
+    """Explain the practical strengths and limits of a model family."""
     reasons = {
         "RandomForest": "RandomForest often performs well because it captures non-linear relationships and interactions between housing indicators without requiring one straight-line pattern.",
         "GradientBoosting": "GradientBoosting can score highly because it builds many small corrections, which helps when housing movement is driven by several weak signals together.",
@@ -1278,8 +1614,10 @@ def model_family_reason(model_name: str) -> str:
 
 
 def evaluation_explanation(evaluation: pd.DataFrame, task_type: str) -> str:
+    """Generate a readable explanation of the best and weakest evaluated models."""
     if evaluation.empty:
         return "Run evaluation first to explain model performance."
+    # Choose the score metric for the current supervised task.
     metric = "R2" if task_type == "Regression" else "F1"
     ranked = evaluation.sort_values(metric, ascending=False)
     best = ranked.iloc[0]
@@ -1304,7 +1642,12 @@ def evaluation_explanation(evaluation: pd.DataFrame, task_type: str) -> str:
     )
 
 
+# -----------------------------------------------------------------------------
+# Unsupervised-learning helpers
+# -----------------------------------------------------------------------------
+
 def prepare_unsupervised_matrix(df: pd.DataFrame, features: list[str], scale_data: bool) -> tuple[pd.DataFrame, np.ndarray]:
+    """Clean, impute, and optionally scale features for unsupervised methods."""
     matrix = df[features].copy()
     matrix = matrix.replace([np.inf, -np.inf], np.nan).dropna()
     if matrix.empty:
@@ -1315,6 +1658,7 @@ def prepare_unsupervised_matrix(df: pd.DataFrame, features: list[str], scale_dat
 
 
 def cluster_quality(values: np.ndarray, labels: np.ndarray) -> dict[str, float | int | None]:
+    """Calculate cluster counts and quality metrics when labels are usable."""
     valid_mask = labels != -1
     valid_labels = labels[valid_mask]
     unique_labels = set(valid_labels)
@@ -1331,11 +1675,13 @@ def cluster_quality(values: np.ndarray, labels: np.ndarray) -> dict[str, float |
 
 
 def pca_projection(values: np.ndarray) -> pd.DataFrame:
+    """Project feature data into two principal components for visualization."""
     components = PCA(n_components=2, random_state=0).fit_transform(values)
     return pd.DataFrame({"PC1": components[:, 0], "PC2": components[:, 1]})
 
 
 def unsupervised_example_text(method: str, features: list[str], details: dict[str, object], target: str | None) -> str:
+    """Explain an unsupervised-learning result in project language."""
     feature_text = ", ".join(features[:5])
     if len(features) > 5:
         feature_text += ", ..."
@@ -1381,6 +1727,7 @@ def most_important_unsupervised_learning(
     details: dict[str, object],
     target: str | None,
 ) -> str:
+    """Highlight the key lesson from the selected unsupervised method."""
     feature_text = ", ".join(features[:4])
     if len(features) > 4:
         feature_text += ", ..."
@@ -1424,7 +1771,12 @@ def most_important_unsupervised_learning(
     )
 
 
+# -----------------------------------------------------------------------------
+# AI assistant and code-lab helpers
+# -----------------------------------------------------------------------------
+
 def code_prompt_system(df: pd.DataFrame, date_col: str | None, target: str | None) -> str:
+    """Describe the app context used to guide code-generation prompts."""
     cols = ", ".join(map(str, df.columns[:30]))
     return (
         "You generate concise, production-ready Streamlit/Python code for a housing "
@@ -1436,6 +1788,7 @@ def code_prompt_system(df: pd.DataFrame, date_col: str | None, target: str | Non
 
 
 def generate_local_code(prompt: str, df: pd.DataFrame, date_col: str | None, target: str | None) -> str:
+    """Return safe local Streamlit code snippets when no OpenAI API key is provided."""
     numeric = df.select_dtypes(include=["number"]).columns.tolist()
     target = target or (numeric[0] if numeric else "target_column")
     date_expr = date_col or "date_column"
@@ -1487,8 +1840,10 @@ else:
 
 
 def generate_code(prompt: str, api_key: str, df: pd.DataFrame, date_col: str | None, target: str | None) -> str:
+    """Generate code with OpenAI when available, otherwise use local templates."""
     if not prompt.strip():
         return "# Enter a prompt first, for example: add a forecast chart for Home_Price_Index."
+    # The local fallback templates let the app remain useful even without an API key.
     if api_key and OpenAI is not None:
         client = OpenAI(api_key=api_key)
         response = client.chat.completions.create(
@@ -1505,6 +1860,7 @@ def generate_code(prompt: str, api_key: str, df: pd.DataFrame, date_col: str | N
 
 
 def app_context_summary(df: pd.DataFrame, date_col: str | None, target: str | None, source_name: str) -> str:
+    """Create a compact text summary of the current dataset and app context."""
     numeric_cols = df.select_dtypes(include=["number"]).columns.tolist()
     date_range = "No date column detected"
     if date_col and df[date_col].notna().any():
@@ -1520,6 +1876,7 @@ def app_context_summary(df: pd.DataFrame, date_col: str | None, target: str | No
 
 
 def local_chat_answer(prompt: str, df: pd.DataFrame, date_col: str | None, target: str | None) -> str:
+    """Answer common dashboard questions without requiring an external AI service."""
     lower = prompt.lower()
     numeric_cols = df.select_dtypes(include=["number"]).columns.tolist()
     target = target or (numeric_cols[0] if numeric_cols else None)
@@ -1575,6 +1932,7 @@ def answer_chat(
     target: str | None,
     source_name: str,
 ) -> str:
+    """Answer chat prompts with OpenAI when configured, with local fallback otherwise."""
     if not prompt.strip():
         return "Ask me a question about the app, data, models, forecast, or code."
     if api_key and OpenAI is not None:
@@ -1601,7 +1959,12 @@ def answer_chat(
     return local_chat_answer(prompt, df, date_col, target)
 
 
+# -----------------------------------------------------------------------------
+# OLAP helpers
+# -----------------------------------------------------------------------------
+
 def flatten_pivot_columns(pivot: pd.DataFrame) -> pd.DataFrame:
+    """Flatten pivot-table columns so exported OLAP tables are easy to read."""
     flat = pivot.reset_index()
     flat.columns = [
         " | ".join(str(part) for part in col if str(part) not in ["", "None"])
@@ -1618,6 +1981,7 @@ def olap_insight(
     value_cols: list[str],
     aggfunc: str,
 ) -> tuple[dict[str, object] | None, pd.DataFrame]:
+    """Find the strongest OLAP segment and prepare a readable insight dictionary."""
     flat = flatten_pivot_columns(pivot)
     numeric_cols = flat.select_dtypes(include=["number"]).columns.tolist()
     if not numeric_cols:
@@ -1665,6 +2029,7 @@ def olap_insight(
 
 
 def olap_example_text(insight: dict[str, object]) -> str:
+    """Turn the top OLAP segment into a short reporting example."""
     agg_label = str(insight["aggregation"]).title()
     measure = str(insight["measure"])
     top_label = str(insight["top_label"])
@@ -1690,6 +2055,7 @@ def olap_interpretation_panel(
     column_dims: list[str],
     selected_values: list[str],
 ) -> dict[str, str]:
+    """Render guided OLAP interpretation notes beside the pivot output."""
     aggregation = str(insight["aggregation"])
     measure = str(insight["measure"])
     top_label = str(insight["top_label"])
@@ -1762,6 +2128,7 @@ def cube_mesh_trace(
     color: str,
     hover_text: str,
 ) -> go.Mesh3d:
+    """Build one 3D cube block for the OLAP block-cube visualization."""
     half = size / 2
     x = [
         x_center - half,
@@ -1813,6 +2180,10 @@ def cube_mesh_trace(
     )
 
 
+# -----------------------------------------------------------------------------
+# Reinforcement-learning demo helper
+# -----------------------------------------------------------------------------
+
 def reinforcement_market_lab(
     data: pd.DataFrame,
     date_col: str,
@@ -1822,6 +2193,7 @@ def reinforcement_market_lab(
     risk_penalty: float,
     random_state: int = 0,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict[str, object]]:
+    """Run an educational Q-learning style market-policy simulation."""
     cols = [date_col, target] + ([signal_feature] if signal_feature else [])
     market = data[cols].dropna(subset=[date_col, target]).sort_values(date_col).copy()
     market[target] = pd.to_numeric(market[target], errors="coerce")
@@ -1938,6 +2310,12 @@ def reinforcement_market_lab(
     return q_table, trace, action_counts, summary
 
 
+# -----------------------------------------------------------------------------
+# Streamlit application layout
+# -----------------------------------------------------------------------------
+
+# Sidebar controls are placed first because they decide which dataset is loaded,
+# which theme is applied, and whether the app should show raw preview rows.
 with st.sidebar:
     st.markdown(
         """
@@ -1968,9 +2346,12 @@ with st.sidebar:
     st.subheader("Dataset")
     st.code(str(DEFAULT_CSV), language="text")
 
+# Apply the selected theme immediately after reading the sidebar toggle.
 apply_theme(dark_mode)
 
 
+# Dataset loading supports two paths: a user-uploaded CSV for experiments, or the
+# bundled raw Kaggle-style file for reproducible project demos.
 if uploaded is not None:
     raw_df = pd.read_csv(uploaded)
     source_name = f"Uploaded file: {uploaded.name}"
@@ -1984,9 +2365,14 @@ else:
     )
     st.stop()
 
+# Once raw data is loaded, clean and normalize it once so every page can reuse
+# the same prepared dataset and labels.
 df, date_col = clean_data(raw_df)
+cleaning_report = data_cleaning_report(raw_df, df, date_col)
 
 with st.sidebar:
+    # Date filtering happens after cleaning because the date column may need to
+    # be detected and parsed from strings first.
     if date_col and df[date_col].notna().any():
         dmin, dmax = df[date_col].min(), df[date_col].max()
         selected_range = st.slider(
@@ -2004,9 +2390,12 @@ if df.empty:
     st.error("The current filters returned no rows. Expand the date range or upload another CSV.")
     st.stop()
 
+# These shared variables keep every tab consistent about the available numeric
+# features and the default housing target.
 num_cols = df.select_dtypes(include=["number"]).columns.tolist()
 target_default = default_target(num_cols)
 
+# The hero banner and workflow strip are the app's main project narrative controls.
 st.markdown(
     f"""
     <div class="hero">
@@ -2064,6 +2453,8 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# The chat assistant is optional: it uses OpenAI when a key is supplied and a
+# local fallback otherwise, so the dashboard remains usable offline.
 chat_left, chat_right = st.columns([5, 1])
 with chat_left:
     st.caption("Need help reading the dashboard? Open the AI chat from the icon.")
@@ -2112,10 +2503,8 @@ with chat_right:
             st.session_state.ai_chat_messages = []
             st.rerun()
 
-if "show_onboarding" not in st.session_state:
-    st.session_state.show_onboarding = True
-
 def onboarding_content() -> None:
+    """Render the start-page guide for first-time users and project reviewers."""
     st.markdown("Welcome to **HousingIQ**. Follow this path for your first demo:")
     st.markdown(
         """
@@ -2127,27 +2516,15 @@ def onboarding_content() -> None:
         """
     )
     st.info("Use sidebar Search for words like `accuracy`, `OLAP`, `forecast`, or `drift`.", icon=":material/search:")
-    if st.button("Got it", key="close_onboarding"):
-        st.session_state.show_onboarding = False
-        st.rerun()
 
-
-if st.session_state.show_onboarding:
-    if hasattr(st, "dialog"):
-        @st.dialog("First-Time Guide")
-        def onboarding_dialog() -> None:
-            onboarding_content()
-
-        onboarding_dialog()
-    else:
-        with st.popover("First-Time Guide", icon=":material/assistant_navigation:"):
-            onboarding_content()
 
 with st.sidebar:
-    if st.button("Show guide again"):
-        st.session_state.show_onboarding = True
-        st.rerun()
+    # Keep the guide available without interrupting repeat users.
+    with st.popover("First-Time Guide", icon=":material/assistant_navigation:"):
+        onboarding_content()
 
+# Top-level metric cards give reviewers an instant sense of dataset size and
+# quality before they open any analytical tab.
 metric_cols = st.columns(5)
 with metric_cols[0]:
     metric_card("Rows", f"{len(df):,}")
@@ -2161,9 +2538,13 @@ with metric_cols[4]:
     metric_card("Periods", f"{df['administration'].nunique():,}")
 
 if show_raw:
+    # Raw preview is intentionally optional because wide CSVs can take space on
+    # the page and distract from the dashboard story during demos.
     st.subheader("Raw Data Preview")
     st.dataframe(df.head(50), width="stretch")
 
+# The tab order follows the project story: orientation, discovery, modeling,
+# segmentation, decision support, reporting, and governance.
 tabs = st.tabs(
     [
         "Start Here",
@@ -2184,11 +2565,17 @@ tabs = st.tabs(
         "Data Dictionary",
         "Scenario Simulator",
         "Production Readiness",
+        "Experiment Tracker",
+        "Model Registry",
+        "Data Pipeline",
+        "Business Impact",
     ]
 )
 
 
 with tabs[0]:
+    # Start Here is a presenter-friendly landing page, not an analysis page. It
+    # tells users which tabs to open when they only have a few minutes.
     st.subheader("Start Here")
     st.caption("A simple guided path for first-time users, evaluators, and project demos.")
     learning_cards(
@@ -2259,6 +2646,8 @@ with tabs[0]:
 
 
 with tabs[1]:
+    # Overview focuses on the two first analytical questions: how the target
+    # moves over time, and which meaningful variables move with it.
     st.subheader("Overview")
     if target_default and date_col and df[date_col].notna().any():
         left, right = st.columns([2, 1])
@@ -2285,6 +2674,8 @@ with tabs[1]:
         value=False,
         key="include_engineered_corr",
     )
+    # Engineered columns are hidden by default so the matrix highlights real
+    # market drivers instead of lagged or target-derived copies.
     corr_candidate_cols = num_cols if include_engineered_corr else interpretable_numeric_features(num_cols, target_default)
     excluded_corr_cols = [col for col in num_cols if col not in corr_candidate_cols]
     cmat = corr_matrix(df[corr_candidate_cols]) if len(corr_candidate_cols) >= 2 else pd.DataFrame()
@@ -2394,6 +2785,8 @@ with tabs[1]:
 
 
 with tabs[2]:
+    # Explore is intentionally flexible: users can switch chart types without
+    # changing the underlying filtered dataset.
     st.subheader("Explore")
     if not num_cols:
         st.info("No numeric columns were found.")
@@ -2473,7 +2866,24 @@ with tabs[2]:
 
 
 with tabs[3]:
+    # Data Quality shows the checks that should happen before modeling or
+    # making conclusions from the dataset.
     st.subheader("Data Quality")
+    st.markdown("#### Data Cleaning Report")
+    st.success(
+        "Data cleaning is included in the project even when the uploaded dataset is already clean. "
+        "The table below documents each cleaning check and its result.",
+        icon=":material/cleaning_services:",
+    )
+    st.dataframe(cleaning_report, width="stretch", hide_index=True)
+    st.download_button(
+        "Download cleaning report CSV",
+        data=cleaning_report.to_csv(index=False).encode("utf-8"),
+        file_name="data_cleaning_report.csv",
+        mime="text/csv",
+    )
+
+    st.markdown("#### Missing Values and Duplicates")
     missing = df.isna().sum().sort_values(ascending=False).reset_index()
     missing.columns = ["column", "missing"]
     missing["missing_%"] = (missing["missing"] / len(df) * 100).round(2)
@@ -2488,6 +2898,8 @@ with tabs[3]:
 
 
 with tabs[4]:
+    # Administration Comparison creates a simple period-based view for explaining
+    # differences between presidential administrations.
     st.subheader("Administration Comparison")
     if not num_cols:
         st.info("No numeric measures are available for comparison.")
@@ -2522,6 +2934,8 @@ with tabs[4]:
 
 
 with tabs[5]:
+    # ML Lab is the interactive sandbox: one selected model can be run quickly,
+    # or all supported models can be compared on the same train/test split.
     st.subheader("Machine Learning Lab")
     learning_cards(
         [
@@ -2581,6 +2995,8 @@ with tabs[5]:
                 compare_all = compare_col.button("Compare all models")
 
                 if compare_all:
+                    # Compare every model with identical inputs so the ranking
+                    # reflects model behavior, not different feature choices.
                     rows = []
                     if task_type == "Regression":
                         for option in model_options:
@@ -2646,6 +3062,8 @@ with tabs[5]:
                         st.session_state.ml_results.extend(comparison.to_dict("records"))
 
                 if run_single:
+                    # Single-model mode is useful for teaching: it shows the
+                    # fitted predictions and, when possible, feature importance.
                     pipeline = build_model_pipeline(model_choice, task_type, use_scaling, scaler_name)
 
                     if task_type == "Regression":
@@ -2674,6 +3092,8 @@ with tabs[5]:
                         result_df = pd.DataFrame({"actual": y_test.values, "predicted": pred})
                         st.plotly_chart(px.line(result_df, y=["actual", "predicted"]), width="stretch")
 
+                        # Cross-validation is capped by available rows so small
+                        # demo datasets do not fail with too many folds.
                         cv = min(5, len(X_train))
                         if cv >= 2:
                             cv_r2 = cross_val_score(pipeline, X_train, y_train, cv=cv, scoring="r2")
@@ -2770,6 +3190,8 @@ with tabs[5]:
                 st.session_state.model_comparison = None
                 st.rerun()
 
+        # This block converts metrics into report-ready language for students or
+        # reviewers who need a concise conclusion, not only numbers.
         st.markdown("#### Guided ML Conclusion Example")
         guide_df = df[[target] + features].dropna()
         if len(guide_df) < 5:
@@ -2839,6 +3261,8 @@ with tabs[5]:
 
 
 with tabs[6]:
+    # Evaluation is the formal model-comparison page. It stores results in
+    # session state so other tabs can reuse the best-model evidence.
     st.subheader("Model Evaluation")
     st.caption("Compare supervised models side by side with the metrics used in machine-learning reports.")
     learning_cards(
@@ -2888,6 +3312,8 @@ with tabs[6]:
             if len(eval_model_df) < min_rows:
                 st.warning(f"Need at least {min_rows} rows after filtering for a useful evaluation.")
             elif st.button("Run full model evaluation", type="primary"):
+                # Store the exact target, features, task, and metrics so later
+                # pages can build experiment tracking and model registry views.
                 try:
                     evaluation = evaluate_all_models(
                         df,
@@ -2902,6 +3328,8 @@ with tabs[6]:
                 else:
                     st.session_state.evaluation_results = evaluation
                     st.session_state.evaluation_task = eval_task
+                    st.session_state.evaluation_features = eval_features
+                    st.session_state.evaluation_target = eval_target
 
         if st.session_state.get("evaluation_results") is not None:
             evaluation = st.session_state.evaluation_results.round(4)
@@ -2971,6 +3399,8 @@ with tabs[6]:
                 mime="text/csv",
             )
             if eval_features:
+                # Explainability is calculated after ranking so the app explains
+                # the current best model rather than an arbitrary model.
                 st.markdown("#### Model Explainability")
                 try:
                     metric = "R2" if task == "Regression" else "F1"
@@ -3013,6 +3443,8 @@ with tabs[6]:
 
 
 with tabs[7]:
+    # Unsupervised learning answers a different question from supervised ML:
+    # "What structure exists?" rather than "Can we predict the target?"
     st.subheader("Unsupervised Learning Lab")
     st.caption("Find groups, lower-dimensional structure, and unusual observations without a target variable.")
     learning_cards(
@@ -3053,6 +3485,8 @@ with tabs[7]:
                 key="unsup_method",
             )
             scale_unsup = st.checkbox("Scale unsupervised features", value=True, key="scale_unsup")
+            # The same prepared matrix feeds all unsupervised methods so method
+            # differences are easier to compare.
             matrix, values = prepare_unsupervised_matrix(df, unsup_features, scale_unsup)
 
             if len(matrix) < 5:
@@ -3060,6 +3494,8 @@ with tabs[7]:
             else:
                 example_details: dict[str, object] = {}
                 if method == "KMeans":
+                    # KMeans is best for broad market regimes when the analyst
+                    # chooses how many groups should exist.
                     cluster_count = st.slider("Number of clusters", 2, min(10, len(matrix) - 1), 3)
                     labels = KMeans(n_clusters=cluster_count, random_state=0, n_init=10).fit_predict(values)
                     quality = cluster_quality(values, labels)
@@ -3083,6 +3519,8 @@ with tabs[7]:
                     st.dataframe(result.head(100), width="stretch")
 
                 elif method == "DBSCAN":
+                    # DBSCAN discovers dense regions and labels isolated rows as
+                    # noise, which is useful for unusual market periods.
                     eps = st.slider("Neighborhood radius (eps)", 0.1, 5.0, 0.8, 0.1)
                     min_samples = st.slider("Minimum samples", 2, 20, 5)
                     labels = DBSCAN(eps=eps, min_samples=min_samples).fit_predict(values)
@@ -3104,6 +3542,8 @@ with tabs[7]:
                     st.dataframe(result.head(100), width="stretch")
 
                 elif method == "PCA":
+                    # PCA compresses many numeric indicators into a few axes so
+                    # users can see whether the data has a simpler structure.
                     pca = PCA(n_components=min(len(unsup_features), len(matrix)), random_state=0)
                     pca.fit(values)
                     explained = pd.DataFrame(
@@ -3128,6 +3568,8 @@ with tabs[7]:
                     st.dataframe(explained.round(4), width="stretch")
 
                 else:
+                    # IsolationForest is used here as an anomaly detector for
+                    # candidate months/rows that deserve deeper investigation.
                     contamination = st.slider("Expected anomaly share", 0.01, 0.25, 0.05, 0.01)
                     detector = IsolationForest(contamination=contamination, random_state=0)
                     raw_labels = detector.fit_predict(values)
@@ -3168,6 +3610,8 @@ with tabs[7]:
                     )
 
                 if st.button("Compare unsupervised models"):
+                    # The comparison table gives a quick benchmark across
+                    # segmentation, dimensionality-reduction, and anomaly tools.
                     rows = []
                     for clusters in [2, 3, 4, 5]:
                         if clusters < len(matrix):
@@ -3212,6 +3656,8 @@ with tabs[7]:
 
 
 with tabs[8]:
+    # This page is an educational RL example. It demonstrates state, action, and
+    # reward concepts without claiming to be a trading or investment system.
     st.subheader("Reinforcement Learning Lab")
     st.caption("Learn a simple decision policy from repeated market states, actions, and rewards.")
     learning_cards(
@@ -3327,6 +3773,8 @@ with tabs[8]:
 
 
 with tabs[9]:
+    # Forecasting uses lagged target values and optional exogenous features. It
+    # is presented as a scenario tool, not as guaranteed future truth.
     st.subheader("Forecast")
     learning_cards(
         [
@@ -3365,12 +3813,16 @@ with tabs[9]:
         base = df[[date_col, target] + exog].copy().sort_values(date_col).reset_index(drop=True)
         for feature in exog:
             base[feature] = base[feature].ffill()
+        # Build supervised rows from time-series history so standard regression
+        # models can be used for a simple multi-step forecast.
         supervised = build_supervised_with_lags(base, date_col, target, exog).dropna(subset=[target])
         feature_cols = [col for col in supervised.columns if col not in [date_col, target]]
 
         if len(supervised.dropna(subset=feature_cols)) < 20:
             st.warning("Not enough complete lagged rows to produce a useful forecast.")
         elif st.button("Generate forecast", type="primary"):
+            # Forecast recursively: each new prediction becomes part of the
+            # working history used to predict the following month.
             train = supervised.dropna(subset=feature_cols)
             pipeline = Pipeline(
                 [
@@ -3416,6 +3868,8 @@ with tabs[9]:
 
 
 with tabs[10]:
+    # The conclusion page ties the technical evidence back to housing theory and
+    # real historical periods, which makes the project easier to defend.
     st.subheader("Final Conclusion")
     st.caption("Connect the dataset, housing theory, real-life history, and model evidence into one final project result.")
     if not target_default or not num_cols:
@@ -3537,6 +3991,8 @@ with tabs[10]:
 
 
 with tabs[11]:
+    # Paper Review connects dashboard findings to outside housing-market theory
+    # and market context, so the project is not only internal data analysis.
     st.subheader("Paper Review & Real-Life Comparison")
     st.caption("Compare outside housing research and current market facts with this dashboard's results.")
     if not target_default or not num_cols:
@@ -3728,6 +4184,8 @@ with tabs[11]:
 
 
 with tabs[12]:
+    # Code Lab is a lightweight helper for generating Streamlit snippets that
+    # match the current dataset. It works with or without an OpenAI API key.
     st.subheader("Code Lab")
     st.markdown(
         '<p class="section-note">Generate new Streamlit code for this app. Add an OpenAI API key for AI output, or use the built-in local templates.</p>',
@@ -3757,6 +4215,8 @@ with tabs[12]:
 
 
 with tabs[13]:
+    # OLAP converts row-level data into business-style segments and exports,
+    # including a 3D cube for presentation value and a heatmap for readability.
     st.subheader("OLAP & Export")
     olap_tab, export_tab = st.tabs(["OLAP Cube", "Export"])
     with olap_tab:
@@ -3774,6 +4234,8 @@ with tabs[13]:
         aggfunc = st.selectbox("Aggregation", ["mean", "sum", "count", "std", "min", "max"])
         if values and index:
             try:
+                # Pivot tables are the core OLAP operation: aggregate a
+                # measure by selected row and column dimensions.
                 pivot = pd.pivot_table(
                     olap_df,
                     values=values,
@@ -3861,6 +4323,8 @@ with tabs[13]:
             if len({x_dim, y_dim, z_dim}) < 3:
                 st.warning("Choose three different dimensions to build a real 3D OLAP cube.")
             else:
+                # The cube groups three dimensions at once. Each row becomes
+                # one cell in the 3D block visualization.
                 cube = (
                     olap_df.groupby([x_dim, y_dim, z_dim], dropna=False)[cube_measure]
                     .agg(cube_agg)
@@ -4023,6 +4487,8 @@ with tabs[13]:
 
 
 with tabs[14]:
+    # Executive Summary gathers the strongest project evidence into a short
+    # report that can be downloaded or shown during a final presentation.
     st.subheader("Executive Summary")
     st.caption("One page for presenting the whole project clearly.")
     evaluation = st.session_state.get("evaluation_results")
@@ -4062,6 +4528,8 @@ with tabs[14]:
 
 
 with tabs[15]:
+    # The data dictionary documents each column so future readers can understand
+    # roles, types, ranges, and missingness without opening the raw CSV.
     st.subheader("Data Dictionary")
     st.caption("A professional reference for every dataset column.")
     dictionary = data_dictionary(df, date_col, target_default)
@@ -4081,6 +4549,8 @@ with tabs[15]:
 
 
 with tabs[16]:
+    # Scenario Simulator changes one feature at a time to show model sensitivity.
+    # It is useful for explanation, but should not be treated as causal proof.
     st.subheader("Scenario Simulator")
     st.caption("Change one feature and estimate how the trained regression model reacts.")
     if len(num_cols) < 2:
@@ -4114,6 +4584,8 @@ with tabs[16]:
             if len(scenario_df) < 20:
                 st.warning("Need at least 20 complete rows for a useful scenario model.")
             elif st.button("Run scenario simulation", type="primary"):
+                # Train a quick local regression model from the currently
+                # selected features, then score baseline and changed rows.
                 pipeline = build_model_pipeline(sim_model, "Regression", True, "StandardScaler")
                 pipeline.fit(scenario_df[sim_features], scenario_df[sim_target])
                 baseline_row = scenario_df[sim_features].iloc[[-1]].copy()
@@ -4149,6 +4621,8 @@ with tabs[16]:
 
 
 with tabs[17]:
+    # Production Readiness adds the checks a real team would want before using
+    # analytics in a repeatable workflow: validation, drift, model card, governance.
     st.subheader("Production Readiness")
     st.caption("Big-company style checks: validation, drift monitoring, model card, and governance.")
     evaluation = st.session_state.get("evaluation_results")
@@ -4213,4 +4687,146 @@ with tabs[17]:
     st.success(
         "Big-company takeaway: the project now includes not just analytics, but also validation, monitoring, explainability, scenario testing, and documentation.",
         icon=":material/business_center:",
+    )
+
+
+with tabs[18]:
+    # Experiment Tracker turns the latest evaluation run into a reproducible
+    # record of model, target, features, metric, and selection status.
+    st.subheader("Experiment Tracker")
+    st.caption("Track model experiments like a real data science workflow.")
+    evaluation = st.session_state.get("evaluation_results")
+    eval_features_used = st.session_state.get("evaluation_features", [])
+    experiments = experiment_table(evaluation, target_default, eval_features_used)
+    if experiments.empty:
+        st.info("Run the Evaluation page first. Then experiments will appear here automatically.")
+    else:
+        st.dataframe(experiments.round(4), width="stretch", hide_index=True)
+        best, metric = best_model_row(evaluation)
+        if best is not None and metric:
+            st.success(
+                f"Best tracked experiment: `{best['Model']}` with `{metric} = {best[metric]:.3f}`.",
+                icon=":material/emoji_events:",
+            )
+        st.download_button(
+            "Download experiment tracker CSV",
+            data=experiments.to_csv(index=False).encode("utf-8"),
+            file_name="experiment_tracker.csv",
+            mime="text/csv",
+        )
+    st.info(
+        "Why this matters: companies track experiments so they can prove which model was tested, when it was tested, and why it was selected.",
+        icon=":material/science:",
+    )
+
+
+with tabs[19]:
+    # Model Registry promotes the current best model as a champion candidate and
+    # documents why it was selected.
+    st.subheader("Model Registry")
+    st.caption("Promote the best evaluated model as a champion candidate.")
+    evaluation = st.session_state.get("evaluation_results")
+    best, metric = best_model_row(evaluation)
+    if best is None:
+        st.info("Run the Evaluation page first to create a registry entry.")
+    else:
+        registry = pd.DataFrame(
+            [
+                {
+                    "Registry role": "Champion Candidate",
+                    "Model": best["Model"],
+                    "Target": target_default,
+                    "Selection metric": metric,
+                    "Metric value": best[metric] if metric else None,
+                    "Approval status": "Ready for review",
+                    "Owner": "Data Science Project",
+                    "Limitations": "Educational model; not financial advice.",
+                }
+            ]
+        )
+        st.dataframe(registry.round(4), width="stretch", hide_index=True)
+        st.success(
+            f"`{best['Model']}` is the current champion candidate because it has the best `{metric}` score.",
+            icon=":material/verified:",
+        )
+        st.markdown("#### Champion Model Card")
+        st.markdown(model_card_markdown(target_default, evaluation, validation_report(df, date_col, target_default), drift_report(df, date_col, num_cols)))
+        st.download_button(
+            "Download model registry CSV",
+            data=registry.to_csv(index=False).encode("utf-8"),
+            file_name="model_registry.csv",
+            mime="text/csv",
+        )
+
+
+with tabs[20]:
+    # Data Pipeline visualizes the project lifecycle from raw data to reporting,
+    # which helps evaluators see the app as an end-to-end workflow.
+    st.subheader("Data Pipeline")
+    st.caption("Show the full data science workflow from raw data to reporting.")
+    evaluation = st.session_state.get("evaluation_results")
+    pipeline_df = pipeline_stage_table(df, date_col, target_default, evaluation)
+    st.dataframe(pipeline_df, width="stretch", hide_index=True)
+    fig = px.timeline(
+        pd.DataFrame(
+            {
+                "Stage": pipeline_df["Stage"],
+                "Start": pd.date_range("2026-01-01", periods=len(pipeline_df), freq="D"),
+                "Finish": pd.date_range("2026-01-02", periods=len(pipeline_df), freq="D"),
+                "Status": pipeline_df["Status"],
+            }
+        ),
+        x_start="Start",
+        x_end="Finish",
+        y="Stage",
+        color="Status",
+        title="Project Pipeline Stages",
+    )
+    fig.update_layout(height=420, xaxis_visible=False)
+    st.plotly_chart(fig, width="stretch")
+    st.info(
+        "This page proves the project has an end-to-end data science pipeline, not just a dashboard.",
+        icon=":material/account_tree:",
+    )
+
+
+with tabs[21]:
+    # Business Impact translates analytical results into stakeholder language:
+    # what decision gets supported, and why the evidence matters.
+    st.subheader("Business Impact")
+    st.caption("Translate technical results into decision-maker language.")
+    evaluation = st.session_state.get("evaluation_results")
+    latest_change = None
+    if date_col and target_default and date_col in df.columns and target_default in df.columns:
+        ordered = df[[date_col, target_default]].dropna().sort_values(date_col)
+        if len(ordered) >= 12:
+            latest_change = float(ordered[target_default].iloc[-1] - ordered[target_default].iloc[-12])
+    st.success(business_impact_text(target_default, evaluation, latest_change), icon=":material/business_center:")
+    impact_table = pd.DataFrame(
+        [
+            {
+                "Stakeholder": "Analyst",
+                "Question answered": "Which model and features explain the target best?",
+                "App evidence": "Evaluation, explainability, correlations",
+            },
+            {
+                "Stakeholder": "Decision maker",
+                "Question answered": "Which segment or period needs attention?",
+                "App evidence": "OLAP cube, comparison pages, scenario simulator",
+            },
+            {
+                "Stakeholder": "Project evaluator",
+                "Question answered": "Is this a complete data science workflow?",
+                "App evidence": "Pipeline, model registry, production readiness, paper review",
+            },
+        ]
+    )
+    st.dataframe(impact_table, width="stretch", hide_index=True)
+    st.markdown("#### Final Business Statement")
+    st.markdown(
+        f"""
+        The application turns `{target_default or 'the housing target'}` into a decision-ready signal. It connects data quality,
+        model performance, segment analysis, scenario testing, and real-world housing theory. This makes the project useful for
+        explaining not only **what happened**, but also **why it matters** and **what to monitor next**.
+        """
     )

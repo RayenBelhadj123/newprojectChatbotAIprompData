@@ -52,7 +52,7 @@ Includes line, scatter, histogram, box plot, and violin plot views. These charts
 
 ### Data Quality
 
-Reports duplicates, missing values, numeric profiles, and missing-value percentages.
+Reports the data-cleaning process, duplicates, missing values, numeric profiles, and missing-value percentages. The cleaning report is shown even when the dataset is already clean so the project clearly documents that data preparation was checked.
 
 ### Compare
 
@@ -123,7 +123,7 @@ Compares the project results with outside research and current market context. T
 
 ### Code Lab
 
-Includes an “Enter a code prompt” box to generate Streamlit code snippets. It can use an OpenAI API key or local templates.
+Includes an "Enter a code prompt" box to generate Streamlit code snippets. It can use an OpenAI API key or local templates.
 
 ### OLAP & Export
 
@@ -193,7 +193,7 @@ The OLAP page helps answer segmented business questions:
 - Which 3D cube cell is most important?
 - Does the segment result agree with ML and trend analysis?
 
-The 3D OLAP cube is supported by a heatmap because 3D plots can be harder to read. The heatmap gives a clearer “cube face” view.
+The 3D OLAP cube is supported by a heatmap because 3D plots can be harder to read. The heatmap gives a clearer "cube face" view.
 
 ## 8. Theory And Real-Life Comparison
 
@@ -231,7 +231,16 @@ python -m py_compile streamlit_app.py
 pytest
 ```
 
-## 11. Final Conclusion
+## 11. Code Documentation
+
+The application code is documented in English so the project can be reviewed, maintained, and presented clearly.
+
+- The top of `streamlit_app.py` explains the purpose of the dashboard.
+- Helper functions include concise docstrings.
+- Section comments group the code into data preparation, UI helpers, model evaluation, reporting, OLAP, reinforcement-learning demo logic, and Streamlit layout.
+- The comments focus on intent and project logic rather than repeating obvious Python syntax.
+
+## 12. Final Conclusion
 
 The dashboard supports a realistic housing-market conclusion: U.S. housing prices are shaped by multiple forces at once. Classic theory is useful, but the best explanation combines theory, model evaluation, segmentation, historical timing, and current market context.
 

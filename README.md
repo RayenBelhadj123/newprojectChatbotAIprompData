@@ -18,7 +18,7 @@ The goal is to explain U.S. housing-price behavior using both data science and r
 - **Executive Summary**: one-page project story with downloadable Markdown report.
 - **Overview**: target trend, meaningful correlation matrix, and guided interpretation.
 - **Explore**: line, scatter, histogram, box plot, and violin plot views.
-- **Data Quality**: missing values, duplicate rows, and numeric profiling.
+- **Data Quality**: data-cleaning report, missing values, duplicate rows, and numeric profiling.
 - **Administration Comparison**: period comparison tables, charts, and radar view.
 - **ML Lab**: supervised regression/classification with multiple models.
 - **Evaluation**: full model comparison table with `R2`, `MAE`, `RMSE`, `Accuracy`, `Precision`, `Recall`, `F1`, and `ROC AUC` where available.
@@ -136,6 +136,16 @@ pip install ruff mkdocs mkdocs-material pymdown-extensions
 ruff check . --config .code_quality/ruff.toml
 mkdocs serve
 ```
+
+## Code Documentation
+
+The main app includes:
+
+- A module-level description of the dashboard purpose.
+- Docstrings for helper functions that explain inputs, outputs, and business purpose.
+- Section comments that separate data preparation, UI helpers, model evaluation, OLAP, AI assistant logic, and app layout.
+
+Use comments to explain why a block exists, not every line of what Python is already doing. This keeps the project readable for evaluators and future contributors.
 
 ## Final Project Conclusion
 
