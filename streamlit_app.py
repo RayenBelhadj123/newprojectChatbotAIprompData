@@ -1636,6 +1636,108 @@ def render_classification_diagnostics(
         st.info(roc_curve_interpretation(roc_auc))
 
 
+def regression_r2_quality_label(r2: float | None) -> str:
+    """Convert R2 into a plain-language quality label."""
+    if r2 is None or pd.isna(r2):
+        return "Unavailable"
+    if r2 >= 0.80:
+        return "Strong"
+    if r2 >= 0.50:
+        return "Moderate"
+    if r2 >= 0.20:
+        return "Weak"
+    if r2 >= 0:
+        return "Very weak"
+    return "Worse than baseline"
+
+
+def regression_metric_interpretation(mae: float, rmse: float, r2: float, y_true: pd.Series) -> pd.DataFrame:
+    """Explain regression values beside the model metrics."""
+    target_mean = float(np.mean(y_true)) if len(y_true) else np.nan
+    mae_share = abs(mae / target_mean) if target_mean and not pd.isna(target_mean) else np.nan
+    rmse_share = abs(rmse / target_mean) if target_mean and not pd.isna(target_mean) else np.nan
+    return pd.DataFrame(
+        [
+            {
+                "Value": "MAE",
+                "Score": round(float(mae), 3),
+                "Quality": f"{mae_share:.1%} of target mean" if not pd.isna(mae_share) else "Lower is better",
+                "Interpretation": "Average absolute prediction error in target units.",
+            },
+            {
+                "Value": "RMSE",
+                "Score": round(float(rmse), 3),
+                "Quality": f"{rmse_share:.1%} of target mean" if not pd.isna(rmse_share) else "Lower is better",
+                "Interpretation": "Error measure that punishes large misses more than MAE.",
+            },
+            {
+                "Value": "R2",
+                "Score": round(float(r2), 3),
+                "Quality": regression_r2_quality_label(r2),
+                "Interpretation": "Share of target variation explained by the model on the test rows.",
+            },
+        ]
+    )
+
+
+def render_regression_metric_values(mae: float, rmse: float, r2: float, y_true: pd.Series) -> None:
+    """Render regression metric cards with an adjacent interpretation table."""
+    metric_col, interpretation_col = st.columns([2, 2])
+    with metric_col:
+        c1, c2, c3 = st.columns(3)
+        c1.metric("MAE", f"{mae:.3f}")
+        c2.metric("RMSE", f"{rmse:.3f}")
+        c3.metric("R2", f"{r2:.3f}")
+    with interpretation_col:
+        st.dataframe(
+            regression_metric_interpretation(mae, rmse, r2, y_true),
+            width="stretch",
+            hide_index=True,
+        )
+
+
+def regression_prediction_interpretation(y_true: pd.Series, y_pred: np.ndarray) -> str:
+    """Summarize the actual-vs-predicted regression chart."""
+    actual_mean = float(np.mean(y_true))
+    predicted_mean = float(np.mean(y_pred))
+    mean_gap = predicted_mean - actual_mean
+    mae = float(mean_absolute_error(y_true, y_pred))
+    direction = "over-predicts" if mean_gap > 0 else "under-predicts" if mean_gap < 0 else "matches the mean of"
+    return (
+        f"- Actual mean: `{actual_mean:.3f}`.\n"
+        f"- Predicted mean: `{predicted_mean:.3f}`.\n"
+        f"- Mean gap: `{mean_gap:.3f}`, so the model {direction} the test period on average.\n"
+        f"- Average absolute error: `{mae:.3f}` target units.\n"
+        "- Lines that move together mean the model follows the test pattern; wide gaps show missed periods."
+    )
+
+
+def regression_metric_chart_interpretation(evaluation: pd.DataFrame, best: pd.Series) -> str:
+    """Explain the regression model-comparison bar chart."""
+    return (
+        f"- `{best['Model']}` is best by R2 with `{best['R2']:.3f}`.\n"
+        "- For R2, taller is better because more target variation is explained.\n"
+        "- For MAE and RMSE, shorter is better because prediction error is lower.\n"
+        "- If a model has high R2 but also high RMSE, inspect whether a few large misses are driving risk."
+    )
+
+
+def feature_effect_interpretation(values: pd.Series, label: str) -> str:
+    """Explain a feature importance or coefficient chart."""
+    if values.empty:
+        return "- No feature signal was available for this model."
+    strongest = values.abs().idxmax()
+    strongest_value = float(values.loc[strongest])
+    direction = ""
+    if label == "coefficient":
+        direction = " Positive values push predictions up; negative values push predictions down."
+    return (
+        f"- Strongest selected feature: `{strongest}` with `{label}` `{strongest_value:.3f}`.\n"
+        "- Longer bars have more influence in this fitted model.\n"
+        f"- Use this as model evidence, not causal proof.{direction}"
+    )
+
+
 def evaluate_all_models(
     data: pd.DataFrame,
     target: str,
@@ -4018,10 +4120,7 @@ with tabs[5]:
                         pipeline.fit(X_train, y_train)
                         pred = pipeline.predict(X_test)
                         mae, rmse, r2 = regression_metrics(y_test, pred)
-                        c1, c2, c3 = st.columns(3)
-                        c1.metric("MAE", f"{mae:.3f}")
-                        c2.metric("RMSE", f"{rmse:.3f}")
-                        c3.metric("R2", f"{r2:.3f}")
+                        render_regression_metric_values(mae, rmse, r2, y_test)
                         if "ml_results" not in st.session_state:
                             st.session_state.ml_results = []
                         st.session_state.ml_results.append(
@@ -4038,7 +4137,12 @@ with tabs[5]:
                             "Mean gap": float(np.mean(pred) - np.mean(y_test)),
                         }
                         result_df = pd.DataFrame({"actual": y_test.values, "predicted": pred})
-                        st.plotly_chart(px.line(result_df, y=["actual", "predicted"]), width="stretch")
+                        prediction_chart_col, prediction_text_col = st.columns([2, 1])
+                        with prediction_chart_col:
+                            st.plotly_chart(px.line(result_df, y=["actual", "predicted"]), width="stretch")
+                        with prediction_text_col:
+                            st.markdown("##### Prediction interpretation")
+                            st.info(regression_prediction_interpretation(y_test, pred))
 
                         # Cross-validation is capped by available rows so small
                         # demo datasets do not fail with too many folds.
@@ -4050,10 +4154,20 @@ with tabs[5]:
                         fitted = pipeline.named_steps["model"]
                         if hasattr(fitted, "feature_importances_"):
                             importance = pd.Series(fitted.feature_importances_, index=features).sort_values()
-                            st.plotly_chart(px.bar(importance, orientation="h"), width="stretch")
+                            feature_chart_col, feature_text_col = st.columns([2, 1])
+                            with feature_chart_col:
+                                st.plotly_chart(px.bar(importance, orientation="h"), width="stretch")
+                            with feature_text_col:
+                                st.markdown("##### Feature interpretation")
+                                st.info(feature_effect_interpretation(importance, "importance"))
                         elif hasattr(fitted, "coef_"):
                             coef = pd.Series(np.ravel(fitted.coef_), index=features).sort_values()
-                            st.plotly_chart(px.bar(coef, orientation="h"), width="stretch")
+                            feature_chart_col, feature_text_col = st.columns([2, 1])
+                            with feature_chart_col:
+                                st.plotly_chart(px.bar(coef, orientation="h"), width="stretch")
+                            with feature_text_col:
+                                st.markdown("##### Coefficient interpretation")
+                                st.info(feature_effect_interpretation(coef, "coefficient"))
                     else:
                         try:
                             y_train_binned, y_test_binned = make_classification_labels(y_train, y_test)
@@ -4308,16 +4422,27 @@ with tabs[6]:
                     icon=":material/emoji_events:",
                 )
                 st.info(evaluation_explanation(evaluation, task), icon=":material/help:")
+                render_regression_metric_values(
+                    float(best["MAE"]),
+                    float(best["RMSE"]),
+                    float(best["R2"]),
+                    df[st.session_state.get("evaluation_target", eval_target)].dropna(),
+                )
                 long_metrics = evaluation.melt(
                     id_vars=["Model"],
                     value_vars=["MAE", "RMSE", "R2"],
                     var_name="Metric",
                     value_name="Score",
                 )
-                st.plotly_chart(
-                    px.bar(long_metrics, x="Model", y="Score", color="Metric", barmode="group"),
-                    width="stretch",
-                )
+                chart_col, chart_text_col = st.columns([2, 1])
+                with chart_col:
+                    st.plotly_chart(
+                        px.bar(long_metrics, x="Model", y="Score", color="Metric", barmode="group"),
+                        width="stretch",
+                    )
+                with chart_text_col:
+                    st.markdown("##### Chart interpretation")
+                    st.info(regression_metric_chart_interpretation(evaluation, best))
                 with st.expander("How to read regression metrics"):
                     st.markdown(
                         "- **R2:** higher is better; it shows how much variation the model explains.\n"
