@@ -1200,8 +1200,7 @@ def make_model(
                 solver="adam",
                 alpha=0.001,
                 learning_rate_init=0.001,
-                early_stopping=True,
-                validation_fraction=0.2,
+                early_stopping=False,
                 max_iter=1200,
                 random_state=random_state,
             ),
@@ -1301,8 +1300,7 @@ def make_model(
                 solver="adam",
                 alpha=float(params.get("alpha", 0.001)),
                 learning_rate_init=float(params.get("learning_rate_init", 0.001)),
-                early_stopping=True,
-                validation_fraction=0.2,
+                early_stopping=False,
                 max_iter=int(params.get("max_iter", 1200)),
                 random_state=random_state,
             )
@@ -1484,6 +1482,158 @@ def roc_curve_figure(pipeline: Pipeline, x_test: pd.DataFrame, y_test: pd.Series
     fig.update_xaxes(range=[0, 1])
     fig.update_yaxes(range=[0, 1])
     return fig
+
+
+def metric_quality_label(value: float | None) -> str:
+    """Convert a 0-1 classification metric into a plain-language quality label."""
+    if value is None or pd.isna(value):
+        return "Unavailable"
+    if value >= 0.90:
+        return "Excellent"
+    if value >= 0.80:
+        return "Strong"
+    if value >= 0.65:
+        return "Moderate"
+    if value >= 0.50:
+        return "Weak"
+    return "Very weak"
+
+
+def classification_metric_interpretation(
+    accuracy: float,
+    precision: float,
+    recall: float,
+    f1: float,
+    roc_auc: float | None,
+) -> pd.DataFrame:
+    """Explain each classification value beside the model metrics."""
+    metric_rows = [
+        {
+            "Value": "Accuracy",
+            "Score": accuracy,
+            "Interpretation": "Share of test rows classified correctly.",
+        },
+        {
+            "Value": "Precision",
+            "Score": precision,
+            "Interpretation": "When the model predicts a class, how often that prediction is correct.",
+        },
+        {
+            "Value": "Recall",
+            "Score": recall,
+            "Interpretation": "How many real class cases the model successfully finds.",
+        },
+        {
+            "Value": "F1",
+            "Score": f1,
+            "Interpretation": "Balanced score combining precision and recall.",
+        },
+        {
+            "Value": "ROC AUC",
+            "Score": roc_auc,
+            "Interpretation": "How well the model ranks classes before applying a hard class decision.",
+        },
+    ]
+    result = pd.DataFrame(metric_rows)
+    result["Score"] = result["Score"].apply(lambda value: None if value is None or pd.isna(value) else round(float(value), 3))
+    result["Quality"] = result["Score"].apply(metric_quality_label)
+    return result[["Value", "Score", "Quality", "Interpretation"]]
+
+
+def render_classification_metric_values(
+    accuracy: float,
+    precision: float,
+    recall: float,
+    f1: float,
+    roc_auc: float | None,
+) -> None:
+    """Render classification metric cards with an adjacent interpretation table."""
+    metric_col, interpretation_col = st.columns([3, 2])
+    with metric_col:
+        c1, c2, c3, c4, c5 = st.columns(5)
+        c1.metric("Accuracy", f"{accuracy:.3f}")
+        c2.metric("Precision", f"{precision:.3f}")
+        c3.metric("Recall", f"{recall:.3f}")
+        c4.metric("F1", f"{f1:.3f}")
+        c5.metric("ROC AUC", "N/A" if roc_auc is None else f"{roc_auc:.3f}")
+    with interpretation_col:
+        st.dataframe(
+            classification_metric_interpretation(accuracy, precision, recall, f1, roc_auc),
+            width="stretch",
+            hide_index=True,
+        )
+
+
+def confusion_matrix_interpretation(y_true: pd.Series, y_pred: np.ndarray) -> str:
+    """Summarize the main message from a confusion matrix."""
+    labels = sorted(pd.Series(pd.concat([pd.Series(y_true), pd.Series(y_pred)])).astype(str).unique())
+    matrix = confusion_matrix(pd.Series(y_true).astype(str), pd.Series(y_pred).astype(str), labels=labels)
+    total = int(matrix.sum())
+    correct = int(np.trace(matrix))
+    errors = total - correct
+    accuracy = correct / total if total else 0.0
+    off_diag = matrix.copy()
+    np.fill_diagonal(off_diag, 0)
+    if off_diag.max() > 0:
+        actual_idx, predicted_idx = np.unravel_index(np.argmax(off_diag), off_diag.shape)
+        mistake_line = (
+            f"- Most common mistake: actual `{labels[actual_idx]}` predicted as "
+            f"`{labels[predicted_idx]}` ({int(off_diag[actual_idx, predicted_idx])} rows)."
+        )
+    else:
+        mistake_line = "- No off-diagonal mistakes appear in this test split."
+    return (
+        f"- Correct predictions: `{correct}` of `{total}` test rows (`{accuracy:.1%}`).\n"
+        f"- Wrong predictions: `{errors}` rows.\n"
+        "- The diagonal cells are correct predictions; off-diagonal cells are mistakes.\n"
+        f"{mistake_line}"
+    )
+
+
+def roc_curve_interpretation(roc_auc: float | None) -> str:
+    """Summarize how to read the ROC curve and AUC value."""
+    if roc_auc is None or pd.isna(roc_auc):
+        return (
+            "- ROC is unavailable because this model or split did not provide usable probability scores.\n"
+            "- Use Accuracy, Precision, Recall, F1, and the confusion matrix for this run."
+        )
+    quality = metric_quality_label(roc_auc).lower()
+    return (
+        f"- Weighted ROC AUC is `{roc_auc:.3f}`, which is a `{quality}` ranking result.\n"
+        "- Curves closer to the top-left corner separate classes better.\n"
+        "- The dashed diagonal is random guessing; useful models should stay above it."
+    )
+
+
+def render_classification_diagnostics(
+    pipeline: Pipeline,
+    x_test: pd.DataFrame,
+    y_test: pd.Series,
+    y_pred: np.ndarray,
+    roc_auc: float | None,
+    confusion_title: str = "Confusion Matrix",
+) -> None:
+    """Render confusion matrix and ROC curve with adjacent interpretation text."""
+    matrix_chart_col, matrix_text_col = st.columns([2, 1])
+    with matrix_chart_col:
+        st.plotly_chart(
+            confusion_matrix_figure(y_test, y_pred, title=confusion_title),
+            width="stretch",
+        )
+    with matrix_text_col:
+        st.markdown("##### How to read it")
+        st.info(confusion_matrix_interpretation(y_test, y_pred))
+
+    roc_chart_col, roc_text_col = st.columns([2, 1])
+    with roc_chart_col:
+        roc_fig = roc_curve_figure(pipeline, x_test, y_test)
+        if roc_fig is None:
+            st.info("ROC curve is unavailable for this classifier or split.")
+        else:
+            st.plotly_chart(roc_fig, width="stretch")
+    with roc_text_col:
+        st.markdown("##### ROC interpretation")
+        st.info(roc_curve_interpretation(roc_auc))
 
 
 def evaluate_all_models(
@@ -3803,39 +3953,56 @@ with tabs[5]:
                             comparison = pd.DataFrame()
                         else:
                             for option in model_options:
-                                pipeline = build_model_pipeline(option, task_type, use_scaling, scaler_name)
-                                pipeline.fit(X_train, y_train_binned)
-                                pred = pipeline.predict(X_test)
-                                roc_auc = classification_auc(pipeline, X_test, y_test_binned)
-                                rows.append(
-                                    {
-                                        "Task": "Classification",
-                                        "Model": option,
-                                        "Accuracy": accuracy_score(y_test_binned, pred),
-                                        "Precision": precision_score(
-                                            y_test_binned,
-                                            pred,
-                                            average="weighted",
-                                            zero_division=0,
-                                        ),
-                                        "Recall": recall_score(
-                                            y_test_binned,
-                                            pred,
-                                            average="weighted",
-                                            zero_division=0,
-                                        ),
-                                        "F1": f1_score(
-                                            y_test_binned,
-                                            pred,
-                                            average="weighted",
-                                            zero_division=0,
-                                        ),
-                                        "ROC AUC": roc_auc,
-                                        "Train rows": len(X_train),
-                                        "Test rows": len(X_test),
-                                    }
-                                )
-                            comparison = pd.DataFrame(rows).sort_values("F1", ascending=False)
+                                try:
+                                    pipeline = build_model_pipeline(option, task_type, use_scaling, scaler_name)
+                                    pipeline.fit(X_train, y_train_binned)
+                                    pred = pipeline.predict(X_test)
+                                    roc_auc = classification_auc(pipeline, X_test, y_test_binned)
+                                    rows.append(
+                                        {
+                                            "Task": "Classification",
+                                            "Model": option,
+                                            "Accuracy": accuracy_score(y_test_binned, pred),
+                                            "Precision": precision_score(
+                                                y_test_binned,
+                                                pred,
+                                                average="weighted",
+                                                zero_division=0,
+                                            ),
+                                            "Recall": recall_score(
+                                                y_test_binned,
+                                                pred,
+                                                average="weighted",
+                                                zero_division=0,
+                                            ),
+                                            "F1": f1_score(
+                                                y_test_binned,
+                                                pred,
+                                                average="weighted",
+                                                zero_division=0,
+                                            ),
+                                            "ROC AUC": roc_auc,
+                                            "Train rows": len(X_train),
+                                            "Test rows": len(X_test),
+                                            "Status": "OK",
+                                        }
+                                    )
+                                except Exception as err:
+                                    rows.append(
+                                        {
+                                            "Task": "Classification",
+                                            "Model": option,
+                                            "Accuracy": np.nan,
+                                            "Precision": np.nan,
+                                            "Recall": np.nan,
+                                            "F1": np.nan,
+                                            "ROC AUC": np.nan,
+                                            "Train rows": len(X_train),
+                                            "Test rows": len(X_test),
+                                            "Status": f"Failed: {err}",
+                                        }
+                                    )
+                            comparison = pd.DataFrame(rows).sort_values("F1", ascending=False, na_position="last")
                     if not comparison.empty:
                         st.session_state.model_comparison = comparison
                         if "ml_results" not in st.session_state:
@@ -3893,47 +4060,44 @@ with tabs[5]:
                         except (AttributeError, ValueError) as err:
                             st.error(f"Could not create target classes: {err}")
                         else:
-                            pipeline.fit(X_train, y_train_binned)
-                            pred = pipeline.predict(X_test)
-                            acc = accuracy_score(y_test_binned, pred)
-                            prec = precision_score(y_test_binned, pred, average="weighted", zero_division=0)
-                            rec = recall_score(y_test_binned, pred, average="weighted", zero_division=0)
-                            f1 = f1_score(y_test_binned, pred, average="weighted", zero_division=0)
-                            roc_auc = classification_auc(pipeline, X_test, y_test_binned)
-                            c1, c2, c3, c4, c5 = st.columns(5)
-                            c1.metric("Accuracy", f"{acc:.3f}")
-                            c2.metric("Precision", f"{prec:.3f}")
-                            c3.metric("Recall", f"{rec:.3f}")
-                            c4.metric("F1", f"{f1:.3f}")
-                            c5.metric("ROC AUC", "N/A" if roc_auc is None else f"{roc_auc:.3f}")
-                            if "ml_results" not in st.session_state:
-                                st.session_state.ml_results = []
-                            st.session_state.ml_results.append(
-                                {
-                                    "Task": "Classification",
-                                    "Model": model_choice,
-                                    "Accuracy": acc,
-                                    "Precision": prec,
-                                    "Recall": rec,
-                                    "F1": f1,
-                                    "ROC AUC": roc_auc,
-                                }
-                            )
-                            report = classification_report(y_test_binned, pred, output_dict=True, zero_division=0)
-                            st.dataframe(pd.DataFrame(report).transpose(), width="stretch")
-                            st.markdown("#### Classification Diagnostics")
-                            matrix_col, roc_col = st.columns(2)
-                            with matrix_col:
-                                st.plotly_chart(
-                                    confusion_matrix_figure(y_test_binned, pred),
-                                    width="stretch",
+                            try:
+                                pipeline.fit(X_train, y_train_binned)
+                                pred = pipeline.predict(X_test)
+                            except Exception as err:
+                                st.error(f"Could not train `{model_choice}`: {err}")
+                                pred = None
+                            if pred is None:
+                                st.info("Try RandomForest, LogisticRegression, DecisionTree, or KNN for this classification split.")
+                            else:
+                                acc = accuracy_score(y_test_binned, pred)
+                                prec = precision_score(y_test_binned, pred, average="weighted", zero_division=0)
+                                rec = recall_score(y_test_binned, pred, average="weighted", zero_division=0)
+                                f1 = f1_score(y_test_binned, pred, average="weighted", zero_division=0)
+                                roc_auc = classification_auc(pipeline, X_test, y_test_binned)
+                                render_classification_metric_values(acc, prec, rec, f1, roc_auc)
+                                if "ml_results" not in st.session_state:
+                                    st.session_state.ml_results = []
+                                st.session_state.ml_results.append(
+                                    {
+                                        "Task": "Classification",
+                                        "Model": model_choice,
+                                        "Accuracy": acc,
+                                        "Precision": prec,
+                                        "Recall": rec,
+                                        "F1": f1,
+                                        "ROC AUC": roc_auc,
+                                    }
                                 )
-                            with roc_col:
-                                roc_fig = roc_curve_figure(pipeline, X_test, y_test_binned)
-                                if roc_fig is None:
-                                    st.info("ROC curve is unavailable for this classifier or split.")
-                                else:
-                                    st.plotly_chart(roc_fig, width="stretch")
+                                report = classification_report(y_test_binned, pred, output_dict=True, zero_division=0)
+                                st.dataframe(pd.DataFrame(report).transpose(), width="stretch")
+                                st.markdown("#### Classification Diagnostics")
+                                render_classification_diagnostics(
+                                    pipeline,
+                                    X_test,
+                                    y_test_binned,
+                                    pred,
+                                    roc_auc,
+                                )
 
                 if st.session_state.get("model_comparison") is not None:
                     st.markdown("#### Model Comparison Table")
@@ -4169,6 +4333,13 @@ with tabs[6]:
                     icon=":material/emoji_events:",
                 )
                 st.info(evaluation_explanation(evaluation, task), icon=":material/help:")
+                render_classification_metric_values(
+                    float(best["Accuracy"]),
+                    float(best["Precision"]),
+                    float(best["Recall"]),
+                    float(best["F1"]),
+                    None if "ROC AUC" not in best or pd.isna(best["ROC AUC"]) else float(best["ROC AUC"]),
+                )
                 metric_cols = ["Accuracy", "Precision", "Recall", "F1"]
                 if "ROC AUC" in evaluation.columns and evaluation["ROC AUC"].notna().any():
                     metric_cols.append("ROC AUC")
@@ -4178,10 +4349,20 @@ with tabs[6]:
                     var_name="Metric",
                     value_name="Score",
                 )
-                st.plotly_chart(
-                    px.bar(long_metrics, x="Model", y="Score", color="Metric", barmode="group"),
-                    width="stretch",
-                )
+                chart_col, chart_text_col = st.columns([2, 1])
+                with chart_col:
+                    st.plotly_chart(
+                        px.bar(long_metrics, x="Model", y="Score", color="Metric", barmode="group"),
+                        width="stretch",
+                    )
+                with chart_text_col:
+                    st.markdown("##### Chart interpretation")
+                    st.info(
+                        f"- Each bar compares one metric for one model.\n"
+                        f"- The best model by F1 is `{best['Model']}` with F1 `{best['F1']:.3f}`.\n"
+                        "- Taller bars are better for all classification metrics shown here.\n"
+                        "- If one model has high accuracy but lower recall or F1, it may be missing important class cases."
+                    )
                 with st.expander("How to read classification metrics"):
                     st.markdown(
                         "- **Accuracy:** total correct predictions, useful when classes are balanced.\n"
@@ -4214,25 +4395,18 @@ with tabs[6]:
                     )
                     diagnostic_model.fit(diagnostic_x_train, diagnostic_y_train)
                     diagnostic_pred = diagnostic_model.predict(diagnostic_x_test)
+                    diagnostic_roc_auc = classification_auc(diagnostic_model, diagnostic_x_test, diagnostic_y_test)
                 except Exception as err:
                     st.info(f"Could not build classifier diagnostics: {err}")
                 else:
-                    matrix_col, roc_col = st.columns(2)
-                    with matrix_col:
-                        st.plotly_chart(
-                            confusion_matrix_figure(
-                                diagnostic_y_test,
-                                diagnostic_pred,
-                                title=f"Confusion Matrix: {best['Model']}",
-                            ),
-                            width="stretch",
-                        )
-                    with roc_col:
-                        roc_fig = roc_curve_figure(diagnostic_model, diagnostic_x_test, diagnostic_y_test)
-                        if roc_fig is None:
-                            st.info("ROC curve is unavailable for the best classifier on this split.")
-                        else:
-                            st.plotly_chart(roc_fig, width="stretch")
+                    render_classification_diagnostics(
+                        diagnostic_model,
+                        diagnostic_x_test,
+                        diagnostic_y_test,
+                        diagnostic_pred,
+                        diagnostic_roc_auc,
+                        confusion_title=f"Confusion Matrix: {best['Model']}",
+                    )
 
             st.download_button(
                 "Download evaluation table CSV",
