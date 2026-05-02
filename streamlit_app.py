@@ -34,7 +34,9 @@ from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 from sklearn.linear_model import LinearRegression, LogisticRegression, Ridge
 from sklearn.metrics import (
     accuracy_score,
+    auc,
     classification_report,
+    confusion_matrix,
     davies_bouldin_score,
     f1_score,
     mean_absolute_error,
@@ -43,6 +45,7 @@ from sklearn.metrics import (
     r2_score,
     recall_score,
     roc_auc_score,
+    roc_curve,
     silhouette_score,
 )
 from sklearn.model_selection import cross_val_score
@@ -1356,16 +1359,131 @@ def classification_auc(pipeline: Pipeline, x_test: pd.DataFrame, y_test: pd.Seri
     """Calculate ROC AUC when the fitted classifier exposes probabilities or scores."""
     try:
         if hasattr(pipeline, "predict_proba"):
-            scores = pipeline.predict_proba(x_test)
+            scores = np.asarray(pipeline.predict_proba(x_test))
         elif hasattr(pipeline, "decision_function"):
-            scores = pipeline.decision_function(x_test)
+            scores = np.asarray(pipeline.decision_function(x_test))
         else:
             return None
-        if len(pd.Series(y_test).dropna().unique()) < 2:
+        y_test_series = pd.Series(y_test)
+        y_classes = y_test_series.dropna().unique()
+        if len(y_classes) < 2:
             return None
+        if len(y_classes) == 2 and scores.ndim == 2 and scores.shape[1] == 2:
+            classes = [str(cls) for cls in getattr(pipeline, "classes_", [])]
+            positive_idx = 1
+            if classes:
+                positive_label = sorted(pd.Series(y_classes).astype(str).unique())[-1]
+                positive_idx = classes.index(positive_label) if positive_label in classes else 1
+            scores = scores[:, positive_idx]
         return float(roc_auc_score(y_test, scores, multi_class="ovr", average="weighted"))
     except Exception:
         return None
+
+
+def classification_score_matrix(pipeline: Pipeline, x_test: pd.DataFrame) -> tuple[np.ndarray, list[str]] | None:
+    """Return classifier probability/score columns with their class labels."""
+    try:
+        if hasattr(pipeline, "predict_proba"):
+            scores = np.asarray(pipeline.predict_proba(x_test))
+        elif hasattr(pipeline, "decision_function"):
+            scores = np.asarray(pipeline.decision_function(x_test))
+        else:
+            return None
+    except Exception:
+        return None
+
+    classes = [str(cls) for cls in getattr(pipeline, "classes_", [])]
+    if scores.ndim == 1:
+        if len(classes) == 2:
+            return scores.reshape(-1, 1), [classes[1]]
+        return scores.reshape(-1, 1), ["Positive class"]
+    if not classes or len(classes) != scores.shape[1]:
+        classes = [f"Class {idx + 1}" for idx in range(scores.shape[1])]
+    return scores, classes
+
+
+def confusion_matrix_figure(y_true: pd.Series, y_pred: np.ndarray, title: str = "Confusion Matrix") -> go.Figure:
+    """Build a labeled confusion-matrix heatmap for classification diagnostics."""
+    labels = sorted(pd.Series(pd.concat([pd.Series(y_true), pd.Series(y_pred)])).astype(str).unique())
+    matrix = confusion_matrix(pd.Series(y_true).astype(str), pd.Series(y_pred).astype(str), labels=labels)
+    fig = px.imshow(
+        matrix,
+        x=labels,
+        y=labels,
+        text_auto=True,
+        color_continuous_scale="Blues",
+        labels={"x": "Predicted class", "y": "Actual class", "color": "Count"},
+        title=title,
+    )
+    fig.update_layout(height=420)
+    return fig
+
+
+def roc_curve_figure(pipeline: Pipeline, x_test: pd.DataFrame, y_test: pd.Series) -> go.Figure | None:
+    """Build one-vs-rest ROC curves for binary or multiclass classifiers."""
+    score_data = classification_score_matrix(pipeline, x_test)
+    if score_data is None:
+        return None
+
+    scores, score_classes = score_data
+    y_true = pd.Series(y_test).astype(str)
+    unique_classes = sorted(y_true.dropna().unique())
+    if len(unique_classes) < 2:
+        return None
+
+    fig = go.Figure()
+    if scores.shape[1] == 1 and len(score_classes) == 1:
+        positive_class = score_classes[0]
+        binary_truth = (y_true == positive_class).astype(int)
+        if binary_truth.nunique() < 2:
+            return None
+        fpr, tpr, _ = roc_curve(binary_truth, scores[:, 0])
+        fig.add_trace(
+            go.Scatter(
+                x=fpr,
+                y=tpr,
+                mode="lines",
+                name=f"{positive_class} (AUC={auc(fpr, tpr):.3f})",
+            )
+        )
+    else:
+        for idx, class_name in enumerate(score_classes):
+            if class_name not in set(unique_classes):
+                continue
+            binary_truth = (y_true == class_name).astype(int)
+            if binary_truth.nunique() < 2:
+                continue
+            fpr, tpr, _ = roc_curve(binary_truth, scores[:, idx])
+            fig.add_trace(
+                go.Scatter(
+                    x=fpr,
+                    y=tpr,
+                    mode="lines",
+                    name=f"{class_name} (AUC={auc(fpr, tpr):.3f})",
+                )
+            )
+
+    if not fig.data:
+        return None
+    fig.add_trace(
+        go.Scatter(
+            x=[0, 1],
+            y=[0, 1],
+            mode="lines",
+            name="Random baseline",
+            line={"dash": "dash", "color": "gray"},
+        )
+    )
+    fig.update_layout(
+        title="ROC Curve",
+        xaxis_title="False Positive Rate",
+        yaxis_title="True Positive Rate",
+        height=420,
+        legend_title="Class",
+    )
+    fig.update_xaxes(range=[0, 1])
+    fig.update_yaxes(range=[0, 1])
+    return fig
 
 
 def evaluate_all_models(
@@ -1677,6 +1795,110 @@ def best_diagnostic_candidate(diagnostics: pd.DataFrame, task_type: str) -> tupl
     fallback = valid.copy()
     fallback["Abs gap"] = fallback["Train-Test gap"].abs()
     return fallback.sort_values(["Test score", "Abs gap"], ascending=[False, True]).iloc[0], False
+
+
+def hyperparameter_definitions_table() -> pd.DataFrame:
+    """Define every hyperparameter exposed in the Fit Diagnostics tuning panel."""
+    return pd.DataFrame(
+        [
+            {
+                "Hyperparameter": "n_estimators",
+                "Used by": "RandomForest, GradientBoosting",
+                "Definition": "Number of trees or boosting stages trained by the ensemble.",
+                "Higher value usually means": "More stable model, slower training, sometimes better fit.",
+            },
+            {
+                "Hyperparameter": "max_depth",
+                "Used by": "RandomForest, GradientBoosting, DecisionTree",
+                "Definition": "Maximum number of levels each tree can grow.",
+                "Higher value usually means": "More flexible model and higher overfitting risk.",
+            },
+            {
+                "Hyperparameter": "min_samples_leaf",
+                "Used by": "RandomForest, GradientBoosting, DecisionTree",
+                "Definition": "Minimum rows required at the end of a tree branch.",
+                "Higher value usually means": "Smoother model with less overfitting.",
+            },
+            {
+                "Hyperparameter": "min_samples_split",
+                "Used by": "RandomForest, DecisionTree",
+                "Definition": "Minimum rows required before a tree node can split again.",
+                "Higher value usually means": "Simpler trees with less overfitting.",
+            },
+            {
+                "Hyperparameter": "learning_rate",
+                "Used by": "GradientBoosting",
+                "Definition": "How strongly each new boosting stage changes the model.",
+                "Higher value usually means": "Faster learning and higher overfitting risk.",
+            },
+            {
+                "Hyperparameter": "ccp_alpha",
+                "Used by": "DecisionTree",
+                "Definition": "Cost-complexity pruning strength used to remove weak tree branches.",
+                "Higher value usually means": "Smaller tree with stronger regularization.",
+            },
+            {
+                "Hyperparameter": "n_neighbors",
+                "Used by": "KNN",
+                "Definition": "Number of nearby training rows used to make each prediction.",
+                "Higher value usually means": "Smoother predictions and less sensitivity to noise.",
+            },
+            {
+                "Hyperparameter": "weights",
+                "Used by": "KNN",
+                "Definition": "Whether all neighbors count equally or closer neighbors count more.",
+                "Higher value usually means": "`distance` is more local; `uniform` is smoother.",
+            },
+            {
+                "Hyperparameter": "alpha",
+                "Used by": "Ridge, NeuralNetwork",
+                "Definition": "Regularization strength that penalizes large model weights.",
+                "Higher value usually means": "Simpler model with less overfitting.",
+            },
+            {
+                "Hyperparameter": "C",
+                "Used by": "LogisticRegression, SVR",
+                "Definition": "Penalty strength inverse; smaller C means stronger regularization.",
+                "Higher value usually means": "More flexible model and weaker regularization.",
+            },
+            {
+                "Hyperparameter": "max_iter",
+                "Used by": "LogisticRegression, NeuralNetwork",
+                "Definition": "Maximum training iterations allowed before stopping.",
+                "Higher value usually means": "More time to converge, not necessarily more complexity.",
+            },
+            {
+                "Hyperparameter": "epsilon",
+                "Used by": "SVR",
+                "Definition": "Prediction-error tolerance ignored by the SVR loss function.",
+                "Higher value usually means": "Smoother model that ignores small errors.",
+            },
+            {
+                "Hyperparameter": "gamma",
+                "Used by": "SVR",
+                "Definition": "Kernel influence setting for how far each training row reaches.",
+                "Higher value usually means": "`auto` can be more local; `scale` adapts to feature variance.",
+            },
+            {
+                "Hyperparameter": "hidden_layers",
+                "Used by": "NeuralNetwork",
+                "Definition": "Number of hidden layers in the neural network.",
+                "Higher value usually means": "More capacity and higher overfitting risk.",
+            },
+            {
+                "Hyperparameter": "hidden_units",
+                "Used by": "NeuralNetwork",
+                "Definition": "Number of neurons in each hidden layer.",
+                "Higher value usually means": "More capacity and higher overfitting risk.",
+            },
+            {
+                "Hyperparameter": "learning_rate_init",
+                "Used by": "NeuralNetwork",
+                "Definition": "Initial step size used while updating neural-network weights.",
+                "Higher value usually means": "Faster learning but less stable training.",
+            },
+        ]
+    )
 
 
 def render_hyperparameter_controls(model_name: str, task_type: str, tuning_goal: str) -> dict[str, object]:
@@ -3584,6 +3806,7 @@ with tabs[5]:
                                 pipeline = build_model_pipeline(option, task_type, use_scaling, scaler_name)
                                 pipeline.fit(X_train, y_train_binned)
                                 pred = pipeline.predict(X_test)
+                                roc_auc = classification_auc(pipeline, X_test, y_test_binned)
                                 rows.append(
                                     {
                                         "Task": "Classification",
@@ -3607,6 +3830,7 @@ with tabs[5]:
                                             average="weighted",
                                             zero_division=0,
                                         ),
+                                        "ROC AUC": roc_auc,
                                         "Train rows": len(X_train),
                                         "Test rows": len(X_test),
                                     }
@@ -3675,11 +3899,13 @@ with tabs[5]:
                             prec = precision_score(y_test_binned, pred, average="weighted", zero_division=0)
                             rec = recall_score(y_test_binned, pred, average="weighted", zero_division=0)
                             f1 = f1_score(y_test_binned, pred, average="weighted", zero_division=0)
-                            c1, c2, c3, c4 = st.columns(4)
+                            roc_auc = classification_auc(pipeline, X_test, y_test_binned)
+                            c1, c2, c3, c4, c5 = st.columns(5)
                             c1.metric("Accuracy", f"{acc:.3f}")
                             c2.metric("Precision", f"{prec:.3f}")
                             c3.metric("Recall", f"{rec:.3f}")
                             c4.metric("F1", f"{f1:.3f}")
+                            c5.metric("ROC AUC", "N/A" if roc_auc is None else f"{roc_auc:.3f}")
                             if "ml_results" not in st.session_state:
                                 st.session_state.ml_results = []
                             st.session_state.ml_results.append(
@@ -3690,10 +3916,24 @@ with tabs[5]:
                                     "Precision": prec,
                                     "Recall": rec,
                                     "F1": f1,
+                                    "ROC AUC": roc_auc,
                                 }
                             )
                             report = classification_report(y_test_binned, pred, output_dict=True, zero_division=0)
                             st.dataframe(pd.DataFrame(report).transpose(), width="stretch")
+                            st.markdown("#### Classification Diagnostics")
+                            matrix_col, roc_col = st.columns(2)
+                            with matrix_col:
+                                st.plotly_chart(
+                                    confusion_matrix_figure(y_test_binned, pred),
+                                    width="stretch",
+                                )
+                            with roc_col:
+                                roc_fig = roc_curve_figure(pipeline, X_test, y_test_binned)
+                                if roc_fig is None:
+                                    st.info("ROC curve is unavailable for this classifier or split.")
+                                else:
+                                    st.plotly_chart(roc_fig, width="stretch")
 
                 if st.session_state.get("model_comparison") is not None:
                     st.markdown("#### Model Comparison Table")
@@ -3887,6 +4127,8 @@ with tabs[6]:
                     st.session_state.evaluation_task = eval_task
                     st.session_state.evaluation_features = eval_features
                     st.session_state.evaluation_target = eval_target
+                    st.session_state.evaluation_scale = eval_scale
+                    st.session_state.evaluation_scaler = eval_scaler
 
         if st.session_state.get("evaluation_results") is not None:
             evaluation = st.session_state.evaluation_results.round(4)
@@ -3948,6 +4190,49 @@ with tabs[6]:
                         "- **F1:** balances precision and recall, good for comparing models.\n"
                         "- **ROC AUC:** higher is better; it measures ranking quality when probability scores are available."
                     )
+                st.markdown("#### Best Classifier Diagnostics")
+                try:
+                    diagnostic_target = st.session_state.get("evaluation_target", eval_target)
+                    diagnostic_features = st.session_state.get("evaluation_features", eval_features)
+                    diagnostic_scale = st.session_state.get("evaluation_scale", eval_scale)
+                    diagnostic_scaler = st.session_state.get("evaluation_scaler", eval_scaler)
+                    diagnostic_df = df[[diagnostic_target] + diagnostic_features].copy().dropna(subset=[diagnostic_target])
+                    diagnostic_split = int(len(diagnostic_df) * 0.8)
+                    diagnostic_x_train = diagnostic_df[diagnostic_features].iloc[:diagnostic_split]
+                    diagnostic_x_test = diagnostic_df[diagnostic_features].iloc[diagnostic_split:]
+                    diagnostic_y_train = diagnostic_df[diagnostic_target].iloc[:diagnostic_split]
+                    diagnostic_y_test = diagnostic_df[diagnostic_target].iloc[diagnostic_split:]
+                    diagnostic_y_train, diagnostic_y_test = make_classification_labels(
+                        diagnostic_y_train,
+                        diagnostic_y_test,
+                    )
+                    diagnostic_model = build_model_pipeline(
+                        str(best["Model"]),
+                        "Classification",
+                        bool(diagnostic_scale),
+                        str(diagnostic_scaler),
+                    )
+                    diagnostic_model.fit(diagnostic_x_train, diagnostic_y_train)
+                    diagnostic_pred = diagnostic_model.predict(diagnostic_x_test)
+                except Exception as err:
+                    st.info(f"Could not build classifier diagnostics: {err}")
+                else:
+                    matrix_col, roc_col = st.columns(2)
+                    with matrix_col:
+                        st.plotly_chart(
+                            confusion_matrix_figure(
+                                diagnostic_y_test,
+                                diagnostic_pred,
+                                title=f"Confusion Matrix: {best['Model']}",
+                            ),
+                            width="stretch",
+                        )
+                    with roc_col:
+                        roc_fig = roc_curve_figure(diagnostic_model, diagnostic_x_test, diagnostic_y_test)
+                        if roc_fig is None:
+                            st.info("ROC curve is unavailable for the best classifier on this split.")
+                        else:
+                            st.plotly_chart(roc_fig, width="stretch")
 
             st.download_button(
                 "Download evaluation table CSV",
@@ -5641,6 +5926,8 @@ with tabs[22]:
             st.markdown(
                 "Adjust the model knobs directly, then run diagnostics again to see whether the train-test gap improves."
             )
+            st.markdown("##### Hyperparameter Definitions")
+            st.dataframe(hyperparameter_definitions_table(), width="stretch", hide_index=True)
             apply_custom_tuning = st.checkbox(
                 "Apply custom hyperparameters to the next run",
                 value=False,
