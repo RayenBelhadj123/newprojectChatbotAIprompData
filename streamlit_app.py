@@ -73,6 +73,7 @@ st.set_page_config(
     page_title="US Housing Intelligence Dashboard",
     page_icon=":house:",
     layout="wide",
+    initial_sidebar_state="expanded",
 )
 
 DEFAULT_CSV = resolve_default_dataset()
@@ -2854,13 +2855,42 @@ with st.sidebar:
 # Apply the selected theme immediately after reading the sidebar toggle.
 apply_theme(dark_mode)
 
+with st.expander("Can't see the sidebar? Open upload and search controls here", expanded=False):
+    st.caption(
+        "Streamlit may collapse the sidebar on small screens. Use this fallback panel "
+        "to upload a CSV and search the dashboard without opening the sidebar."
+    )
+    fallback_cols = st.columns([1, 1])
+    with fallback_cols[0]:
+        main_uploaded = st.file_uploader(
+            "Upload Kaggle CSV",
+            type=["csv"],
+            key="main_upload_csv",
+            help="This is the same CSV uploader as the sidebar, shown here for easier access.",
+        )
+        main_use_default = st.checkbox(
+            "Use default CSV",
+            value=(main_uploaded is None),
+            key="main_use_default_csv",
+        )
+    with fallback_cols[1]:
+        main_dashboard_query = st.text_input(
+            "Search pages, metrics, or columns",
+            placeholder="Try: evaluation, upload, OLAP, forecast, overfit",
+            key="main_dashboard_query",
+        )
+        st.caption("Search results appear after the dataset loads.")
+
 
 # Dataset loading supports two paths: a user-uploaded CSV for experiments, or the
 # bundled raw Kaggle-style file for reproducible project demos.
-if uploaded is not None:
-    raw_df = pd.read_csv(uploaded)
-    source_name = f"Uploaded file: {uploaded.name}"
-elif use_default and DEFAULT_CSV.exists():
+active_upload = main_uploaded if main_uploaded is not None else uploaded
+active_use_default = main_use_default if main_uploaded is not None else use_default
+
+if active_upload is not None:
+    raw_df = pd.read_csv(active_upload)
+    source_name = f"Uploaded file: {active_upload.name}"
+elif active_use_default and DEFAULT_CSV.exists():
     raw_df = pd.read_csv(DEFAULT_CSV)
     source_name = f"Local file: {DEFAULT_CSV.name}"
 else:
@@ -2883,6 +2913,17 @@ with st.sidebar:
         search_limit,
         df,
         include_column_search,
+    )
+
+effective_main_query = main_dashboard_query.strip()
+if effective_main_query:
+    st.markdown("#### Search Results")
+    render_search_results(
+        effective_main_query,
+        "All",
+        5,
+        df,
+        True,
     )
 
 with st.sidebar:
