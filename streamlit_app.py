@@ -10,6 +10,7 @@ moved into ``src/us_housing`` modules as the project grows.
 
 import os
 import sys
+import io
 from difflib import SequenceMatcher
 from pathlib import Path
 
@@ -521,6 +522,35 @@ def clean_data(df: pd.DataFrame) -> tuple[pd.DataFrame, str | None]:
     return out, date_col
 
 
+@st.cache_data(show_spinner="Loading CSV...")
+def load_csv_from_path(path: str, modified_time: float) -> pd.DataFrame:
+    """Load a local CSV once per file version."""
+    return pd.read_csv(path)
+
+
+@st.cache_data(show_spinner="Loading uploaded CSV...")
+def load_csv_from_bytes(file_bytes: bytes) -> pd.DataFrame:
+    """Load an uploaded CSV once per uploaded file content."""
+    return pd.read_csv(io.BytesIO(file_bytes))
+
+
+@st.cache_data(show_spinner="Preparing dataset...")
+def prepare_dataset(raw_df: pd.DataFrame) -> tuple[pd.DataFrame, str | None, pd.DataFrame]:
+    """Cache cleaning and the cleaning report so reruns stay responsive."""
+    cleaned_df, detected_date_col = clean_data(raw_df)
+    report = data_cleaning_report(raw_df, cleaned_df, detected_date_col)
+    return cleaned_df, detected_date_col, report
+
+
+def limit_rows_for_display(data: pd.DataFrame, max_rows: int, sort_col: str | None = None) -> pd.DataFrame:
+    """Return a deterministic row-limited frame for heavy charts and previews."""
+    if max_rows <= 0 or len(data) <= max_rows:
+        return data
+    display_df = data.sort_values(sort_col) if sort_col and sort_col in data.columns else data
+    positions = np.linspace(0, len(display_df) - 1, max_rows).astype(int)
+    return display_df.iloc[np.unique(positions)].copy()
+
+
 def data_cleaning_report(raw_df: pd.DataFrame, cleaned_df: pd.DataFrame, date_col: str | None) -> pd.DataFrame:
     """Document every cleaning check, including checks that found clean data."""
     # This report is the final stage of the nettoyage pipeline: it records
@@ -620,6 +650,7 @@ def admin_label(dt):
     return "Post-Biden"
 
 
+@st.cache_data(show_spinner=False)
 def corr_matrix(df: pd.DataFrame) -> pd.DataFrame:
     """Build a numeric correlation matrix, returning an empty frame if none exists."""
     numeric = df.select_dtypes(include=["number"])
@@ -1156,28 +1187,38 @@ def make_model(
                 n_estimators=300,
                 random_state=random_state,
                 n_jobs=-1,
-                min_samples_leaf=2,
+                max_depth=8,
+                min_samples_leaf=5,
+                min_samples_split=10,
+                max_features="sqrt",
             ),
             "LinearRegression": LinearRegression(),
             "SVR": SVR(kernel="rbf", C=1.0, epsilon=0.1),
             "GradientBoosting": GradientBoostingRegressor(
-                n_estimators=120,
+                n_estimators=180,
+                learning_rate=0.04,
+                max_depth=2,
+                min_samples_leaf=5,
+                subsample=0.8,
                 random_state=random_state,
             ),
             "DecisionTree": DecisionTreeRegressor(
+                max_depth=5,
                 random_state=random_state,
-                min_samples_leaf=3,
+                min_samples_leaf=8,
+                min_samples_split=16,
+                ccp_alpha=0.005,
             ),
             "KNN": KNeighborsRegressor(n_neighbors=5),
             "NeuralNetwork": MLPRegressor(
-                hidden_layer_sizes=(64, 32),
+                hidden_layer_sizes=(32,),
                 activation="relu",
                 solver="adam",
-                alpha=0.001,
+                alpha=0.01,
                 learning_rate_init=0.001,
                 early_stopping=True,
                 validation_fraction=0.2,
-                max_iter=1200,
+                max_iter=800,
                 random_state=random_state,
             ),
         }
@@ -1185,23 +1226,30 @@ def make_model(
         models = {
             "RandomForest": RandomForestClassifier(
                 n_estimators=300,
+                max_depth=8,
+                min_samples_leaf=5,
+                min_samples_split=10,
+                max_features="sqrt",
                 random_state=random_state,
                 n_jobs=-1,
             ),
-            "LogisticRegression": LogisticRegression(random_state=random_state, max_iter=1000),
+            "LogisticRegression": LogisticRegression(C=0.5, random_state=random_state, max_iter=1000),
             "DecisionTree": DecisionTreeClassifier(
+                max_depth=5,
                 random_state=random_state,
-                min_samples_leaf=3,
+                min_samples_leaf=8,
+                min_samples_split=16,
+                ccp_alpha=0.005,
             ),
-            "KNN": KNeighborsClassifier(n_neighbors=5),
+            "KNN": KNeighborsClassifier(n_neighbors=9, weights="uniform"),
             "NeuralNetwork": MLPClassifier(
-                hidden_layer_sizes=(64, 32),
+                hidden_layer_sizes=(32,),
                 activation="relu",
                 solver="adam",
-                alpha=0.001,
+                alpha=0.01,
                 learning_rate_init=0.001,
                 early_stopping=False,
-                max_iter=1200,
+                max_iter=800,
                 random_state=random_state,
             ),
         }
@@ -1215,8 +1263,9 @@ def make_model(
             return RandomForestRegressor(
                 n_estimators=int(params.get("n_estimators", 300)),
                 max_depth=params.get("max_depth"),
-                min_samples_leaf=int(params.get("min_samples_leaf", 2)),
-                min_samples_split=int(params.get("min_samples_split", 2)),
+                min_samples_leaf=int(params.get("min_samples_leaf", 5)),
+                min_samples_split=int(params.get("min_samples_split", 10)),
+                max_features=params.get("max_features", "sqrt"),
                 random_state=random_state,
                 n_jobs=-1,
             )
@@ -1229,18 +1278,19 @@ def make_model(
             )
         if model_name == "GradientBoosting":
             return GradientBoostingRegressor(
-                n_estimators=int(params.get("n_estimators", 120)),
-                learning_rate=float(params.get("learning_rate", 0.1)),
-                max_depth=int(params.get("max_depth", 3)),
-                min_samples_leaf=int(params.get("min_samples_leaf", 1)),
+                n_estimators=int(params.get("n_estimators", 180)),
+                learning_rate=float(params.get("learning_rate", 0.04)),
+                max_depth=int(params.get("max_depth", 2)),
+                min_samples_leaf=int(params.get("min_samples_leaf", 5)),
+                subsample=float(params.get("subsample", 0.8)),
                 random_state=random_state,
             )
         if model_name == "DecisionTree":
             return DecisionTreeRegressor(
                 max_depth=params.get("max_depth"),
-                min_samples_leaf=int(params.get("min_samples_leaf", 3)),
-                min_samples_split=int(params.get("min_samples_split", 2)),
-                ccp_alpha=float(params.get("ccp_alpha", 0.0)),
+                min_samples_leaf=int(params.get("min_samples_leaf", 8)),
+                min_samples_split=int(params.get("min_samples_split", 16)),
+                ccp_alpha=float(params.get("ccp_alpha", 0.005)),
                 random_state=random_state,
             )
         if model_name == "KNN":
@@ -1249,17 +1299,17 @@ def make_model(
                 weights=str(params.get("weights", "uniform")),
             )
         if model_name == "NeuralNetwork":
-            hidden_layers = int(params.get("hidden_layers", 2))
-            hidden_units = int(params.get("hidden_units", 64))
+            hidden_layers = int(params.get("hidden_layers", 1))
+            hidden_units = int(params.get("hidden_units", 32))
             return MLPRegressor(
                 hidden_layer_sizes=tuple([hidden_units] * hidden_layers),
                 activation="relu",
                 solver="adam",
-                alpha=float(params.get("alpha", 0.001)),
+                alpha=float(params.get("alpha", 0.01)),
                 learning_rate_init=float(params.get("learning_rate_init", 0.001)),
                 early_stopping=True,
                 validation_fraction=0.2,
-                max_iter=int(params.get("max_iter", 1200)),
+                max_iter=int(params.get("max_iter", 800)),
                 random_state=random_state,
             )
     else:
@@ -1267,41 +1317,42 @@ def make_model(
             return RandomForestClassifier(
                 n_estimators=int(params.get("n_estimators", 300)),
                 max_depth=params.get("max_depth"),
-                min_samples_leaf=int(params.get("min_samples_leaf", 1)),
-                min_samples_split=int(params.get("min_samples_split", 2)),
+                min_samples_leaf=int(params.get("min_samples_leaf", 5)),
+                min_samples_split=int(params.get("min_samples_split", 10)),
+                max_features=params.get("max_features", "sqrt"),
                 random_state=random_state,
                 n_jobs=-1,
             )
         if model_name == "LogisticRegression":
             return LogisticRegression(
-                C=float(params.get("C", 1.0)),
+                C=float(params.get("C", 0.5)),
                 random_state=random_state,
                 max_iter=int(params.get("max_iter", 1000)),
             )
         if model_name == "DecisionTree":
             return DecisionTreeClassifier(
                 max_depth=params.get("max_depth"),
-                min_samples_leaf=int(params.get("min_samples_leaf", 3)),
-                min_samples_split=int(params.get("min_samples_split", 2)),
-                ccp_alpha=float(params.get("ccp_alpha", 0.0)),
+                min_samples_leaf=int(params.get("min_samples_leaf", 8)),
+                min_samples_split=int(params.get("min_samples_split", 16)),
+                ccp_alpha=float(params.get("ccp_alpha", 0.005)),
                 random_state=random_state,
             )
         if model_name == "KNN":
             return KNeighborsClassifier(
-                n_neighbors=int(params.get("n_neighbors", 5)),
+                n_neighbors=int(params.get("n_neighbors", 9)),
                 weights=str(params.get("weights", "uniform")),
             )
         if model_name == "NeuralNetwork":
-            hidden_layers = int(params.get("hidden_layers", 2))
-            hidden_units = int(params.get("hidden_units", 64))
+            hidden_layers = int(params.get("hidden_layers", 1))
+            hidden_units = int(params.get("hidden_units", 32))
             return MLPClassifier(
                 hidden_layer_sizes=tuple([hidden_units] * hidden_layers),
                 activation="relu",
                 solver="adam",
-                alpha=float(params.get("alpha", 0.001)),
+                alpha=float(params.get("alpha", 0.01)),
                 learning_rate_init=float(params.get("learning_rate_init", 0.001)),
                 early_stopping=False,
-                max_iter=int(params.get("max_iter", 1200)),
+                max_iter=int(params.get("max_iter", 800)),
                 random_state=random_state,
             )
     return models[model_name]
@@ -1858,13 +1909,22 @@ def model_feature_importance(
 
 def fit_diagnosis_label(train_score: float, test_score: float, gap: float) -> str:
     """Classify model fit quality from train/test score behavior."""
-    if train_score >= 0.75 and gap >= 0.15:
+    if train_score >= 0.70 and gap >= 0.10:
         return "Overfitting risk"
     if train_score < 0.45 and test_score < 0.45:
         return "Underfitting risk"
     if test_score < 0 and train_score > 0:
         return "Poor generalization"
     return "Reasonable fit"
+
+
+def overfit_adjusted_score(test_score: float, gap: float, cv_std: float | None = None) -> float:
+    """Penalize high test scores when they come with a large train-test gap."""
+    if pd.isna(test_score):
+        return np.nan
+    stability_penalty = 0.0 if cv_std is None or pd.isna(cv_std) else 0.25 * float(cv_std)
+    gap_penalty = 0.50 * max(0.0, float(gap))
+    return float(test_score - gap_penalty - stability_penalty)
 
 
 def hyperparameter_fix_recommendation(model_name: str, diagnosis: str, task_type: str) -> str:
@@ -1968,6 +2028,7 @@ def diagnose_model_fit(
                     "Train score": np.nan,
                     "Test score": np.nan,
                     "Train-Test gap": np.nan,
+                    "Adjusted score": np.nan,
                     "Diagnosis": "Model failed",
                     cv_metric: np.nan,
                     "CV std": np.nan,
@@ -1995,6 +2056,7 @@ def diagnose_model_fit(
         else:
             cv_mean = np.nan
             cv_std = np.nan
+        adjusted_score = overfit_adjusted_score(test_score, gap, cv_std)
 
         rows.append(
             {
@@ -2003,6 +2065,7 @@ def diagnose_model_fit(
                 "Train score": train_score,
                 "Test score": test_score,
                 "Train-Test gap": gap,
+                "Adjusted score": adjusted_score,
                 "Diagnosis": diagnosis,
                 cv_metric: cv_mean,
                 "CV std": cv_std,
@@ -2024,7 +2087,7 @@ def diagnose_model_fit(
     }
     result = pd.DataFrame(rows)
     result["_diagnosis_order"] = result["Diagnosis"].map(diagnosis_order).fillna(9)
-    return result.sort_values(["_diagnosis_order", "Test score"], ascending=[True, False]).drop(columns="_diagnosis_order")
+    return result.sort_values(["_diagnosis_order", "Adjusted score"], ascending=[True, False]).drop(columns="_diagnosis_order")
 
 
 def best_diagnostic_candidate(diagnostics: pd.DataFrame, task_type: str) -> tuple[pd.Series | None, bool]:
@@ -2040,13 +2103,13 @@ def best_diagnostic_candidate(diagnostics: pd.DataFrame, task_type: str) -> tupl
 
     safe = valid[valid["Diagnosis"] == "Reasonable fit"].copy()
     if not safe.empty:
-        return safe.sort_values("Test score", ascending=False).iloc[0], True
+        return safe.sort_values("Adjusted score", ascending=False).iloc[0], True
 
     # When no model is fully safe, prefer the candidate with the strongest test
     # score and the smallest gap. This is a fallback, not a clean champion.
     fallback = valid.copy()
     fallback["Abs gap"] = fallback["Train-Test gap"].abs()
-    return fallback.sort_values(["Test score", "Abs gap"], ascending=[False, True]).iloc[0], False
+    return fallback.sort_values(["Adjusted score", "Abs gap"], ascending=[False, True]).iloc[0], False
 
 
 def hyperparameter_definitions_table() -> pd.DataFrame:
@@ -2078,10 +2141,22 @@ def hyperparameter_definitions_table() -> pd.DataFrame:
                 "Higher value usually means": "Simpler trees with less overfitting.",
             },
             {
+                "Hyperparameter": "max_features",
+                "Used by": "RandomForest",
+                "Definition": "Number or rule for features each tree can consider at a split.",
+                "Higher value usually means": "More fit to the training data; `sqrt` is safer against overfitting.",
+            },
+            {
                 "Hyperparameter": "learning_rate",
                 "Used by": "GradientBoosting",
                 "Definition": "How strongly each new boosting stage changes the model.",
                 "Higher value usually means": "Faster learning and higher overfitting risk.",
+            },
+            {
+                "Hyperparameter": "subsample",
+                "Used by": "GradientBoosting",
+                "Definition": "Fraction of training rows used for each boosting stage.",
+                "Higher value usually means": "Less randomness; lower values add regularization.",
             },
             {
                 "Hyperparameter": "ccp_alpha",
@@ -2178,11 +2253,17 @@ def render_hyperparameter_controls(model_name: str, task_type: str, tuning_goal:
             "Minimum samples per leaf",
             1,
             30,
-            8 if overfit else 1 if underfit else 2,
+            8 if overfit else 2 if underfit else 5,
             help="Higher values smooth the model and reduce overfitting.",
         )
         if model_name == "RandomForest":
-            params["min_samples_split"] = st.slider("Minimum samples to split", 2, 40, 12 if overfit else 2)
+            params["min_samples_split"] = st.slider("Minimum samples to split", 2, 40, 14 if overfit else 4 if underfit else 10)
+            params["max_features"] = st.selectbox(
+                "Features considered at each split",
+                ["sqrt", "log2", None],
+                index=0,
+                help="sqrt/log2 reduce tree similarity and help control overfitting.",
+            )
         else:
             params["learning_rate"] = st.slider(
                 "Learning rate",
@@ -2191,6 +2272,14 @@ def render_hyperparameter_controls(model_name: str, task_type: str, tuning_goal:
                 0.04 if overfit else 0.15 if underfit else 0.10,
                 0.01,
                 help="Lower learning rate is safer against overfitting but may need more estimators.",
+            )
+            params["subsample"] = st.slider(
+                "Row sample per boosting stage",
+                0.5,
+                1.0,
+                0.75 if overfit else 1.0 if underfit else 0.8,
+                0.05,
+                help="Lower values add randomness and reduce overfitting.",
             )
     elif model_name == "DecisionTree":
         max_depth_options = [None, 2, 3, 4, 5, 8, 12, 16, 24]
@@ -2366,7 +2455,12 @@ def validation_report(df: pd.DataFrame, date_col: str | None, target: str | None
             "Why it matters": "Infinite values break many model and chart pipelines.",
         }
     )
-    return pd.DataFrame(checks)
+    report = pd.DataFrame(checks)
+    # Streamlit serializes dataframes through Arrow, which requires each column
+    # to have a consistent type. This table mixes counts, percentages, and text
+    # in Value, so keep the display column explicitly textual.
+    report["Value"] = report["Value"].astype(str)
+    return report
 
 
 def drift_report(df: pd.DataFrame, date_col: str | None, numeric_cols: list[str]) -> pd.DataFrame:
@@ -2610,6 +2704,7 @@ def evaluation_explanation(evaluation: pd.DataFrame, task_type: str) -> str:
 # Unsupervised-learning helpers
 # -----------------------------------------------------------------------------
 
+@st.cache_data(show_spinner=False)
 def prepare_unsupervised_matrix(df: pd.DataFrame, features: list[str], scale_data: bool) -> tuple[pd.DataFrame, np.ndarray]:
     """Clean, impute, and optionally scale features for unsupervised methods."""
     matrix = df[features].copy()
@@ -2638,6 +2733,7 @@ def cluster_quality(values: np.ndarray, labels: np.ndarray) -> dict[str, float |
     return metrics
 
 
+@st.cache_data(show_spinner=False)
 def pca_projection(values: np.ndarray) -> pd.DataFrame:
     """Project feature data into two principal components for visualization."""
     components = PCA(n_components=2, random_state=0).fit_transform(values)
@@ -3300,6 +3396,38 @@ with st.sidebar:
     use_default = st.checkbox("Use default CSV", value=(uploaded is None))
     dark_mode = st.toggle("Dark mode", value=False)
     show_raw = st.checkbox("Show raw data preview", value=False)
+    preview_rows = st.slider(
+        "Raw preview rows",
+        50,
+        5000,
+        200,
+        50,
+        disabled=not show_raw,
+        help="Controls how many rows appear in the optional raw data preview.",
+    )
+    performance_mode = st.toggle(
+        "Performance mode",
+        value=True,
+        help="Limits chart rows and caches expensive dataset preparation for smoother reruns.",
+    )
+    max_chart_rows = st.slider(
+        "Max chart rows",
+        500,
+        20000,
+        3000,
+        500,
+        disabled=not performance_mode,
+        help="Large charts are sampled to this many rows while tables and model inputs keep their selected data.",
+    )
+    max_model_rows = st.slider(
+        "Max modeling rows",
+        1000,
+        50000,
+        10000,
+        1000,
+        disabled=not performance_mode,
+        help="In performance mode, supervised and diagnostic models use a deterministic sample up to this row count.",
+    )
 
     st.divider()
     st.subheader("Search")
@@ -3325,6 +3453,9 @@ with st.sidebar:
     st.divider()
     st.subheader("Dataset")
     st.code(str(DEFAULT_CSV), language="text")
+    if st.button("Clear cached data", help="Use this after changing a large CSV outside the uploader."):
+        st.cache_data.clear()
+        st.rerun()
 
 # Apply the selected theme immediately after reading the sidebar toggle.
 apply_theme(dark_mode)
@@ -3362,10 +3493,10 @@ active_upload = main_uploaded if main_uploaded is not None else uploaded
 active_use_default = main_use_default if main_uploaded is not None else use_default
 
 if active_upload is not None:
-    raw_df = pd.read_csv(active_upload)
+    raw_df = load_csv_from_bytes(active_upload.getvalue())
     source_name = f"Uploaded file: {active_upload.name}"
 elif active_use_default and DEFAULT_CSV.exists():
-    raw_df = pd.read_csv(DEFAULT_CSV)
+    raw_df = load_csv_from_path(str(DEFAULT_CSV), DEFAULT_CSV.stat().st_mtime)
     source_name = f"Local file: {DEFAULT_CSV.name}"
 else:
     st.error(
@@ -3376,8 +3507,7 @@ else:
 
 # Once raw data is loaded, clean and normalize it once so every page can reuse
 # the same prepared dataset and labels.
-df, date_col = clean_data(raw_df)
-cleaning_report = data_cleaning_report(raw_df, df, date_col)
+df, date_col, cleaning_report = prepare_dataset(raw_df)
 
 with st.sidebar:
     st.markdown("#### Search Results")
@@ -3571,7 +3701,8 @@ if show_raw:
     # Raw preview is intentionally optional because wide CSVs can take space on
     # the page and distract from the dashboard story during demos.
     st.subheader("Raw Data Preview")
-    st.dataframe(df.head(50), width="stretch")
+    st.caption(f"Showing the first {min(preview_rows, len(df)):,} of {len(df):,} rows.")
+    st.dataframe(df.head(preview_rows), width="stretch")
 
 # The tab order follows the project story: orientation, discovery, modeling,
 # segmentation, decision support, reporting, and governance.
@@ -3683,8 +3814,13 @@ with tabs[1]:
     if target_default and date_col and df[date_col].notna().any():
         left, right = st.columns([2, 1])
         with left:
-            fig = px.line(
+            chart_df = limit_rows_for_display(
                 df.dropna(subset=[target_default]),
+                max_chart_rows if performance_mode else 0,
+                date_col,
+            )
+            fig = px.line(
+                chart_df,
                 x=date_col,
                 y=target_default,
                 color="administration",
@@ -3834,6 +3970,7 @@ with tabs[2]:
                 metric = st.selectbox("Metric", num_cols, index=num_cols.index(target_default), key="line_metric")
                 rolling = st.slider("Rolling window", 2, 24, 6)
                 chart_df = df[[date_col, metric, "administration"]].dropna().sort_values(date_col)
+                chart_df = limit_rows_for_display(chart_df, max_chart_rows if performance_mode else 0, date_col)
                 chart_df["rolling_mean"] = chart_df[metric].rolling(rolling).mean()
                 fig = px.line(chart_df, x=date_col, y=[metric, "rolling_mean"], title=f"{metric} trend")
                 st.plotly_chart(fig, width="stretch")
@@ -3841,14 +3978,16 @@ with tabs[2]:
             x_col = st.selectbox("X", num_cols, index=0, key="scatter_x")
             y_index = 1 if len(num_cols) > 1 else 0
             y_col = st.selectbox("Y", num_cols, index=y_index, key="scatter_y")
-            fig = px.scatter(df, x=x_col, y=y_col, color="administration", trendline="ols", opacity=0.7)
+            chart_df = limit_rows_for_display(df, max_chart_rows if performance_mode else 0, date_col)
+            fig = px.scatter(chart_df, x=x_col, y=y_col, color="administration", trendline="ols", opacity=0.7)
             fig.update_layout(height=520)
             st.plotly_chart(fig, width="stretch")
         elif chart_type == "Histogram":
             metric = st.selectbox("Metric", num_cols, index=num_cols.index(target_default), key="hist_metric")
             bins = st.slider("Histogram bins", 10, 80, 35)
+            chart_df = limit_rows_for_display(df, max_chart_rows if performance_mode else 0, date_col)
             fig = px.histogram(
-                df,
+                chart_df,
                 x=metric,
                 color="administration",
                 marginal="box",
@@ -3864,8 +4003,9 @@ with tabs[2]:
         elif chart_type == "Box Plot":
             metric = st.selectbox("Metric", num_cols, index=num_cols.index(target_default), key="box_metric")
             show_points = st.checkbox("Show outlier points", value=True, key="box_points")
+            chart_df = limit_rows_for_display(df, max_chart_rows if performance_mode else 0, date_col)
             fig = px.box(
-                df,
+                chart_df,
                 x="administration",
                 y=metric,
                 points="outliers" if show_points else False,
@@ -3879,8 +4019,9 @@ with tabs[2]:
             )
         else:
             metric = st.selectbox("Metric", num_cols, index=num_cols.index(target_default), key="violin_metric")
+            chart_df = limit_rows_for_display(df, max_chart_rows if performance_mode else 0, date_col)
             fig = px.violin(
-                df,
+                chart_df,
                 x="administration",
                 y=metric,
                 color="administration",
@@ -4012,7 +4153,10 @@ with tabs[5]:
                     icon=":material/psychology:",
                 )
 
-            model_df = df[[target] + features].copy().dropna(subset=[target])
+            modeling_source = limit_rows_for_display(df, max_model_rows if performance_mode else 0, date_col)
+            model_df = modeling_source[[target] + features].copy().dropna(subset=[target])
+            if performance_mode and len(df) > len(modeling_source):
+                st.caption(f"Performance mode: modeling uses {len(modeling_source):,} sampled rows from {len(df):,} filtered rows.")
             min_rows = 20 if task_type == "Regression" else 30
             if len(model_df) < min_rows:
                 st.warning(f"Need at least {min_rows} rows after filtering for a reliable model run.")
@@ -4382,7 +4526,10 @@ with tabs[6]:
         if not eval_features:
             st.info("Select at least one feature to evaluate models.")
         else:
-            eval_model_df = df[[eval_target] + eval_features].dropna(subset=[eval_target])
+            eval_source = limit_rows_for_display(df, max_model_rows if performance_mode else 0, date_col)
+            eval_model_df = eval_source[[eval_target] + eval_features].dropna(subset=[eval_target])
+            if performance_mode and len(df) > len(eval_source):
+                st.caption(f"Performance mode: evaluation uses {len(eval_source):,} sampled rows from {len(df):,} filtered rows.")
             min_rows = 20 if eval_task == "Regression" else 30
             if len(eval_model_df) < min_rows:
                 st.warning(f"Need at least {min_rows} rows after filtering for a useful evaluation.")
@@ -4391,7 +4538,7 @@ with tabs[6]:
                 # pages can build experiment tracking and model registry views.
                 try:
                     evaluation = evaluate_all_models(
-                        df,
+                        eval_source,
                         eval_target,
                         eval_features,
                         eval_task,
@@ -4547,7 +4694,7 @@ with tabs[6]:
                     metric = "R2" if task == "Regression" else "F1"
                     best_model_name = evaluation.sort_values(metric, ascending=False).iloc[0]["Model"]
                     explain_pipeline, explain_X, explain_y = fit_best_model_for_task(
-                        df,
+                        eval_source,
                         eval_target,
                         eval_features,
                         task,
@@ -4628,7 +4775,10 @@ with tabs[7]:
             scale_unsup = st.checkbox("Scale unsupervised features", value=True, key="scale_unsup")
             # The same prepared matrix feeds all unsupervised methods so method
             # differences are easier to compare.
-            matrix, values = prepare_unsupervised_matrix(df, unsup_features, scale_unsup)
+            unsup_source = limit_rows_for_display(df, max_model_rows if performance_mode else 0, date_col)
+            if performance_mode and len(df) > len(unsup_source):
+                st.caption(f"Performance mode: unsupervised models use {len(unsup_source):,} sampled rows from {len(df):,} filtered rows.")
+            matrix, values = prepare_unsupervised_matrix(unsup_source, unsup_features, scale_unsup)
 
             if len(matrix) < 5:
                 st.warning("Need at least five complete rows after cleaning selected features.")
@@ -6267,14 +6417,17 @@ with tabs[22]:
         elif not fit_models:
             st.info("Select at least one model to diagnose.")
         else:
-            fit_model_df = df[[fit_target] + fit_features].dropna(subset=[fit_target])
+            fit_source = limit_rows_for_display(df, max_model_rows if performance_mode else 0, date_col)
+            fit_model_df = fit_source[[fit_target] + fit_features].dropna(subset=[fit_target])
+            if performance_mode and len(df) > len(fit_source):
+                st.caption(f"Performance mode: fit diagnostics uses {len(fit_source):,} sampled rows from {len(df):,} filtered rows.")
             min_rows = 20 if fit_task == "Regression" else 30
             if len(fit_model_df) < min_rows:
                 st.warning(f"Need at least {min_rows} rows after filtering for useful fit diagnostics.")
             elif st.button("Run fit diagnostics", type="primary"):
                 try:
                     diagnostics = diagnose_model_fit(
-                        df,
+                        fit_source,
                         fit_target,
                         fit_features,
                         fit_task,
@@ -6293,11 +6446,23 @@ with tabs[22]:
         diagnostics = st.session_state.get("fit_diagnostics")
         if diagnostics is not None and not diagnostics.empty:
             task = st.session_state.get("fit_diagnostics_task", fit_task)
+            if "Adjusted score" not in diagnostics.columns:
+                diagnostics = diagnostics.copy()
+                diagnostics["Adjusted score"] = diagnostics.apply(
+                    lambda row: overfit_adjusted_score(
+                        row.get("Test score", np.nan),
+                        row.get("Train-Test gap", np.nan),
+                        row.get("CV std", np.nan),
+                    ),
+                    axis=1,
+                )
+                st.session_state.fit_diagnostics = diagnostics
             rounded = diagnostics.round(
                 {
                     "Train score": 4,
                     "Test score": 4,
                     "Train-Test gap": 4,
+                    "Adjusted score": 4,
                     "CV R2": 4,
                     "CV F1": 4,
                     "CV std": 4,
@@ -6310,6 +6475,11 @@ with tabs[22]:
 
             st.markdown("#### Diagnosis Numbers")
             st.dataframe(rounded, width="stretch", hide_index=True)
+            st.info(
+                "`Adjusted score` is the test score after subtracting penalties for a large train-test gap and unstable cross-validation. "
+                "Use it to prefer models that generalize instead of models that memorize.",
+                icon=":material/tune:",
+            )
 
             counts = diagnostics["Diagnosis"].value_counts()
             c1, c2, c3, c4 = st.columns(4)
@@ -6369,6 +6539,18 @@ with tabs[22]:
                     width="stretch",
                 )
 
+            st.plotly_chart(
+                px.bar(
+                    diagnostics.sort_values("Adjusted score"),
+                    x="Adjusted score",
+                    y="Model",
+                    color="Diagnosis",
+                    orientation="h",
+                    title="Overfit-Adjusted Model Score",
+                ),
+                width="stretch",
+            )
+
             if task == "Regression":
                 error_long = diagnostics.melt(
                     id_vars=["Model"],
@@ -6399,7 +6581,9 @@ with tabs[22]:
                 if is_safe_candidate:
                     st.success(
                         f"{status_text}: `{best_candidate['Model']}` has no overfitting/underfitting warning. "
-                        f"Test score = `{best_candidate['Test score']:.3f}`, train-test gap = `{best_candidate['Train-Test gap']:.3f}`.",
+                        f"Adjusted score = `{best_candidate['Adjusted score']:.3f}`, "
+                        f"test score = `{best_candidate['Test score']:.3f}`, "
+                        f"train-test gap = `{best_candidate['Train-Test gap']:.3f}`.",
                         icon=status_icon,
                     )
                 else:
@@ -6409,11 +6593,12 @@ with tabs[22]:
                         icon=status_icon,
                     )
 
-                champion_cols = st.columns(4)
+                champion_cols = st.columns(5)
                 champion_cols[0].metric("Selected model", str(best_candidate["Model"]))
                 champion_cols[1].metric("Test score", f"{best_candidate['Test score']:.3f}")
-                champion_cols[2].metric("Train-test gap", f"{best_candidate['Train-Test gap']:.3f}")
-                champion_cols[3].metric(
+                champion_cols[2].metric("Adjusted score", f"{best_candidate['Adjusted score']:.3f}")
+                champion_cols[3].metric("Train-test gap", f"{best_candidate['Train-Test gap']:.3f}")
+                champion_cols[4].metric(
                     cv_col,
                     "n/a" if pd.isna(best_candidate.get(cv_col)) else f"{best_candidate[cv_col]:.3f}",
                 )
@@ -6467,6 +6652,7 @@ with tabs[22]:
                     "- **Underfitting risk:** both train and test scores are weak.\n"
                     "- **Poor generalization:** the model has positive training signal but fails badly on test data.\n"
                     "- **Reasonable fit:** no strong warning pattern was detected.\n"
+                    "- **Adjusted score:** test score minus penalties for train-test gap and cross-validation instability.\n"
                     "- These rules are practical diagnostics, not absolute proof. Always combine them with domain logic, feature review, and cross-validation."
                 )
 
