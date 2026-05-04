@@ -1392,14 +1392,17 @@ def build_supervised_with_lags(
 ) -> pd.DataFrame:
     """Create lagged, rolling, and differenced features for forecasting."""
     # This function is part of the feature-engineering pipeline, building
-    # time-aware predictors for forecasting models.
+    # time-aware predictors for forecasting models. Target-derived features must
+    # use only values known before the row being predicted; otherwise the model
+    # learns from the answer during training and behaves badly on future rows.
     out = df[[date_col, target] + list(features)].copy()
     out = out.sort_values(date_col).reset_index(drop=True)
+    prior_target = out[target].shift(1)
     for lag in lags:
         out[f"{target}_lag{lag}"] = out[target].shift(lag)
     for window in roll_windows:
-        out[f"{target}_rollmean{window}"] = out[target].rolling(window).mean()
-    out[f"{target}_diff1"] = out[target].diff(1)
+        out[f"{target}_rollmean{window}"] = prior_target.rolling(window).mean()
+    out[f"{target}_diff1"] = prior_target.diff(1)
     for feature in features:
         out[f"{feature}_lag1"] = out[feature].shift(1)
     return out
@@ -2663,8 +2666,9 @@ def fit_best_model_for_task(
     split = int(len(model_df) * 0.8)
     X_train = model_df[features].iloc[:split]
     y_train = model_df[target].iloc[:split]
-    # This function only trains on the first 80% of rows; held-out rows are for later
-    # test/evaluation and forecasting consistency.
+    # This function only trains on the first 80% of rows; held-out rows are for
+    # test/evaluation consistency. Future forecasts refit separately on all usable
+    # history after evaluation.
     if task_type == "Classification":
         y_train, _ = make_classification_labels(y_train, model_df[target].iloc[split:])
     pipeline = build_model_pipeline(model_name, task_type, use_scaling, scaler_name)
@@ -6681,6 +6685,10 @@ with tabs[9]:
             ["Ridge", "RandomForest", "LinearRegression", "SVR", "GradientBoosting", "DecisionTree", "KNN"],
             index=0,
         )
+        st.caption(
+            "The train/test split is used for model evaluation. When you generate a future forecast, "
+            "the selected model is refit on the full usable historical dataset."
+        )
         base = df[[date_col, target] + exog].copy().sort_values(date_col).reset_index(drop=True)
         for feature in exog:
             base[feature] = base[feature].ffill()
@@ -6694,7 +6702,13 @@ with tabs[9]:
         elif st.button("Generate forecast", type="primary"):
             # Forecast recursively: each new prediction becomes part of the
             # working history used to predict the following month.
-            train = supervised.dropna(subset=feature_cols)
+            full_forecast_train = supervised.dropna(subset=feature_cols)
+            forecast_train = full_forecast_train.copy()
+            forecast_train["__target_change__"] = forecast_train[target] - forecast_train[f"{target}_lag1"]
+            forecast_train = forecast_train.dropna(subset=["__target_change__"])
+            historical_changes = forecast_train["__target_change__"].dropna()
+            change_floor = float(historical_changes.quantile(0.01))
+            change_ceiling = float(historical_changes.quantile(0.99))
             pipeline = Pipeline(
                 [
                     ("imputer", SimpleImputer(strategy="median")),
@@ -6702,10 +6716,17 @@ with tabs[9]:
                     ("model", make_model(model_choice, "Regression")),
                 ]
             )
-            pipeline.fit(train[feature_cols], train[target])
+            pipeline.fit(forecast_train[feature_cols], forecast_train["__target_change__"])
+            st.info(
+                f"Forecast model refit on `{len(forecast_train):,}` complete historical rows and predicts monthly change before projecting future values.",
+                icon=":material/database:",
+            )
 
             last_date = base[date_col].dropna().max()
             future_dates = pd.date_range(last_date + pd.offsets.MonthBegin(1), periods=horizon, freq="MS")
+            st.caption(
+                f"Forecast starts after the latest dataset date: `{last_date:%Y-%m-%d}` -> `{future_dates[0]:%Y-%m-%d}`."
+            )
             working = base.copy()
             predictions = []
             for next_date in future_dates:
@@ -6715,7 +6736,10 @@ with tabs[9]:
                 working = pd.concat([working, pd.DataFrame([row])], ignore_index=True)
                 next_supervised = build_supervised_with_lags(working, date_col, target, exog)
                 next_features = next_supervised.iloc[[-1]][feature_cols]
-                prediction = float(pipeline.predict(next_features)[0])
+                predicted_change = float(pipeline.predict(next_features)[0])
+                predicted_change = float(np.clip(predicted_change, change_floor, change_ceiling))
+                previous_value = float(working[target].dropna().iloc[-1])
+                prediction = previous_value + predicted_change
                 working.loc[working.index[-1], target] = prediction
                 predictions.append(prediction)
 
