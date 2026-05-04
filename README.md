@@ -97,6 +97,8 @@ pip install -r requirements.txt
 streamlit run streamlit_app.py
 ```
 
+The Streamlit config enables `runOnSave`, so code changes rerun automatically without restarting the local server.
+
 Or, if `make` is available:
 
 ```bash

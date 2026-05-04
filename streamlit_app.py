@@ -26,7 +26,9 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 from sklearn.ensemble import (
+    ExtraTreesRegressor,
     GradientBoostingRegressor,
+    HistGradientBoostingRegressor,
     IsolationForest,
     RandomForestClassifier,
     RandomForestRegressor,
@@ -35,7 +37,7 @@ from sklearn.impute import SimpleImputer
 from sklearn.cluster import DBSCAN, KMeans
 from sklearn.decomposition import PCA
 from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
-from sklearn.linear_model import LinearRegression, LogisticRegression, Ridge
+from sklearn.linear_model import BayesianRidge, ElasticNet, LinearRegression, LogisticRegression, Ridge
 from sklearn.metrics import (
     accuracy_score,
     auc,
@@ -347,7 +349,7 @@ def recommend_feature_columns(df: pd.DataFrame, target: str | None, date_col: st
     """Recommend clean numeric features for supervised pages."""
     candidates = []
     for col in numeric_cols:
-        if col == target or col == date_col or col == "administration":
+        if col == target or col == date_col or col == "time_group":
             continue
         series = df[col]
         if series.nunique(dropna=True) <= 1:
@@ -482,8 +484,11 @@ def apply_theme(dark_mode: bool) -> None:
             html, body, [data-testid="stAppViewContainer"], .stApp {{
                 min-height: 100vh;
                 min-height: 100dvh;
+                width: 100%;
+                max-width: 100vw;
                 margin: 0;
                 padding: 0;
+                overflow-x: hidden;
                 -webkit-overflow-scrolling: touch;
                 overscroll-behavior-y: none;
                 touch-action: manipulation;
@@ -519,22 +524,42 @@ def apply_theme(dark_mode: bool) -> None:
                 visibility: hidden;
             }}
             .block-container {{
-                padding-top: max(1rem, calc(var(--sat) + 0.75rem));
-                padding-bottom: 2.4rem;
-                max-width: 1480px;
+                padding-top: max(0.75rem, calc(var(--sat) + 0.5rem));
+                padding-bottom: 1.8rem;
+                max-width: min(1200px, calc(100vw - var(--sal) - var(--sar) - 1rem));
+                width: 100%;
+                overflow-x: hidden;
+            }}
+            .block-container > div,
+            [data-testid="stVerticalBlock"],
+            [data-testid="stHorizontalBlock"] {{
+                max-width: 100%;
+            }}
+            [data-testid="stElementContainer"],
+            [data-testid="stPlotlyChart"],
+            [data-testid="stDataFrame"],
+            [data-testid="stTable"] {{
+                max-width: 100%;
+                overflow-x: auto;
+            }}
+            [data-testid="stDataFrame"] > div,
+            [data-testid="stTable"] > div {{
+                max-width: 100%;
             }}
             h1, h2, h3, h4 {{
                 color: var(--text);
                 letter-spacing: 0;
-                font-weight: 760;
+                font-weight: 750;
             }}
             h2 {{
-                padding-top: 0.25rem;
+                padding-top: 0.2rem;
+                font-size: 1.4rem;
             }}
             h3 {{
-                border-left: 4px solid var(--accent);
-                padding-left: 0.7rem;
-                margin-top: 1.4rem;
+                border-left: 3px solid var(--accent);
+                padding-left: 0.6rem;
+                margin-top: 1rem;
+                font-size: 1.1rem;
             }}
             p, li, label, span {{
                 letter-spacing: 0;
@@ -591,12 +616,12 @@ def apply_theme(dark_mode: bool) -> None:
             }}
             .hero {{
                 border: 1px solid var(--border);
-                border-radius: 16px;
-                padding: 30px;
+                border-radius: 14px;
+                padding: 24px;
                 background:
                     linear-gradient(135deg, rgba(33,184,166,0.14), rgba(244,176,70,0.08)),
                     var(--panel);
-                margin-bottom: 14px;
+                margin-bottom: 12px;
                 box-shadow: var(--shadow);
                 position: relative;
                 overflow: hidden;
@@ -611,15 +636,16 @@ def apply_theme(dark_mode: bool) -> None:
                 background: var(--accent);
             }}
             .hero h1 {{
-                font-size: 2.22rem;
-                margin: 0 0 8px 0;
-                line-height: 1.12;
+                font-size: 1.88rem;
+                margin: 0 0 6px 0;
+                line-height: 1.15;
             }}
             .hero p {{
                 color: var(--muted);
                 margin: 0;
-                line-height: 1.55;
-                max-width: 920px;
+                line-height: 1.5;
+                max-width: 800px;
+                font-size: 0.95rem;
             }}
             .chip-row {{
                 display: flex;
@@ -638,52 +664,52 @@ def apply_theme(dark_mode: bool) -> None:
             }}
             .workflow-strip {{
                 display: grid;
-                grid-template-columns: repeat(6, minmax(120px, 1fr));
-                gap: 10px;
-                margin: 12px 0 18px 0;
+                grid-template-columns: repeat(6, minmax(110px, 1fr));
+                gap: 8px;
+                margin: 10px 0 14px 0;
             }}
             .workflow-step {{
                 border: 1px solid var(--border);
                 background: linear-gradient(180deg, var(--panel), var(--panel-2));
-                border-radius: 13px;
-                padding: 14px;
-                box-shadow: 0 14px 34px rgba(0,0,0,0.13);
-                min-height: 78px;
+                border-radius: 11px;
+                padding: 11px;
+                box-shadow: 0 10px 28px rgba(0,0,0,0.1);
+                min-height: 70px;
             }}
             .workflow-step .step-kicker {{
                 color: var(--accent);
-                font-size: 0.72rem;
-                font-weight: 800;
+                font-size: 0.68rem;
+                font-weight: 790;
                 text-transform: uppercase;
                 letter-spacing: 0.08em;
             }}
             .workflow-step .step-title {{
                 color: var(--text);
-                font-size: 0.92rem;
-                font-weight: 760;
-                margin-top: 3px;
+                font-size: 0.85rem;
+                font-weight: 740;
+                margin-top: 2px;
             }}
             .metric-card {{
-                min-height: 108px;
+                min-height: 95px;
                 border: 1px solid var(--border);
-                border-radius: 13px;
+                border-radius: 11px;
                 background: linear-gradient(180deg, var(--panel), var(--panel-2));
-                padding: 17px;
-                box-shadow: 0 16px 44px rgba(0,0,0,0.13);
+                padding: 14px;
+                box-shadow: 0 12px 32px rgba(0,0,0,0.1);
                 border-top: 3px solid var(--accent);
             }}
             .metric-card .label {{
                 color: var(--muted);
-                font-size: 0.78rem;
+                font-size: 0.72rem;
                 text-transform: uppercase;
                 letter-spacing: 0.08em;
-                font-weight: 750;
+                font-weight: 740;
             }}
             .metric-card .value {{
                 color: var(--text);
-                font-size: 1.45rem;
-                font-weight: 750;
-                margin-top: 8px;
+                font-size: 1.25rem;
+                font-weight: 740;
+                margin-top: 6px;
                 word-break: break-word;
             }}
             .section-note {{
@@ -724,7 +750,8 @@ def apply_theme(dark_mode: bool) -> None:
             div[data-testid="stTable"] {{
                 border: 1px solid var(--border);
                 border-radius: 10px;
-                overflow: hidden;
+                overflow-x: auto;
+                overflow-y: hidden;
                 background: var(--panel);
             }}
             .stButton > button,
@@ -760,35 +787,35 @@ def apply_theme(dark_mode: bool) -> None:
             }}
             .learning-grid {{
                 display: grid;
-                grid-template-columns: repeat(3, minmax(180px, 1fr));
-                gap: 12px;
-                margin: 8px 0 18px 0;
+                grid-template-columns: repeat(3, minmax(160px, 1fr));
+                gap: 10px;
+                margin: 6px 0 14px 0;
             }}
             .learning-card {{
                 border: 1px solid var(--border);
-                border-radius: 13px;
-                padding: 15px;
+                border-radius: 11px;
+                padding: 12px;
                 background: linear-gradient(180deg, var(--panel), var(--panel-2));
-                box-shadow: 0 12px 34px rgba(0,0,0,0.12);
+                box-shadow: 0 10px 28px rgba(0,0,0,0.1);
             }}
             .learning-card .learning-kicker {{
                 color: var(--accent-2);
-                font-size: 0.72rem;
-                font-weight: 850;
+                font-size: 0.68rem;
+                font-weight: 840;
                 letter-spacing: 0.08em;
                 text-transform: uppercase;
-                margin-bottom: 6px;
+                margin-bottom: 4px;
             }}
             .learning-card .learning-title {{
                 color: var(--text);
-                font-size: 1rem;
-                font-weight: 800;
-                margin-bottom: 6px;
+                font-size: 0.92rem;
+                font-weight: 780;
+                margin-bottom: 4px;
             }}
             .learning-card .learning-text {{
                 color: var(--muted);
-                font-size: 0.88rem;
-                line-height: 1.45;
+                font-size: 0.82rem;
+                line-height: 1.4;
             }}
             .search-result {{
                 border: 1px solid var(--border);
@@ -808,27 +835,27 @@ def apply_theme(dark_mode: bool) -> None:
             }}
             @media (max-width: 900px) {{
                 .block-container {{
-                    padding-left: max(0.85rem, calc(var(--sal) + 0.85rem));
-                    padding-right: max(0.85rem, calc(var(--sar) + 0.85rem));
-                    padding-bottom: max(1.4rem, calc(var(--sab) + 1rem));
+                    padding-left: max(0.7rem, calc(var(--sal) + 0.7rem));
+                    padding-right: max(0.7rem, calc(var(--sar) + 0.7rem));
+                    padding-bottom: max(1.2rem, calc(var(--sab) + 0.8rem));
                 }}
                 .workflow-strip {{
-                    grid-template-columns: repeat(2, minmax(120px, 1fr));
+                    grid-template-columns: repeat(2, minmax(110px, 1fr));
                 }}
                 .learning-grid {{
                     grid-template-columns: 1fr;
                 }}
                 .hero h1 {{
-                    font-size: 1.62rem;
+                    font-size: 1.4rem;
                 }}
                 .hero {{
-                    padding: 20px;
-                    border-radius: 14px;
+                    padding: 16px;
+                    border-radius: 12px;
                 }}
                 .brand-mark {{
-                    width: 38px;
-                    height: 38px;
-                    border-radius: 10px;
+                    width: 36px;
+                    height: 36px;
+                    border-radius: 9px;
                 }}
                 .stTabs [data-baseweb="tab"] {{
                     min-width: max-content;
@@ -874,11 +901,11 @@ def clean_data(df: pd.DataFrame) -> tuple[pd.DataFrame, str | None]:
             if converted.notna().sum() > 0:
                 out[col] = converted
 
-    # Add a reusable period label for later dashboard grouping.
+    # Add a reusable neutral time label for later dashboard grouping.
     if date_col and out[date_col].notna().any():
-        out["administration"] = out[date_col].apply(admin_label)
+        out["time_group"] = out[date_col].apply(time_group_label)
     else:
-        out["administration"] = "Unknown"
+        out["time_group"] = "Unknown"
     return out, date_col
 
 
@@ -974,7 +1001,7 @@ def data_cleaning_report(raw_df: pd.DataFrame, cleaned_df: pd.DataFrame, date_co
         {
             "Cleaning step": "Period feature creation",
             "What was checked": "The app created a reusable time-group label for comparison pages.",
-            "Result": "`administration` was added as the internal grouped-analysis column.",
+            "Result": "`time_group` was added as the internal grouped-analysis column.",
             "Status": "Applied",
         },
         {
@@ -1352,17 +1379,19 @@ def apply_cleaning_studio(
     return out, date_col, pd.DataFrame(rows)
 
 
-def admin_label(dt):
-    """Map a date to the U.S. presidential-administration period used in the app."""
+def time_group_label(dt):
+    """Map a date to neutral analytical time periods used in the app."""
     if pd.isna(dt):
         return "Unknown"
-    if dt < pd.Timestamp("2017-01-20"):
-        return "Pre-Trump"
-    if dt <= pd.Timestamp("2021-01-19"):
-        return "Trump (2017-2020)"
-    if dt <= pd.Timestamp("2025-01-19"):
-        return "Biden (2021-2024)"
-    return "Post-Biden"
+    if dt < pd.Timestamp("2020-03-01"):
+        return "Pre-COVID baseline"
+    if dt <= pd.Timestamp("2020-12-31"):
+        return "COVID shock"
+    if dt <= pd.Timestamp("2021-12-31"):
+        return "Early recovery"
+    if dt <= pd.Timestamp("2023-12-31"):
+        return "High-rate inflation period"
+    return "Recent period"
 
 
 @st.cache_data(show_spinner=False)
@@ -1382,6 +1411,209 @@ def regression_metrics(y_true, y_pred) -> tuple[float, float, float]:
     return mae, rmse, r2
 
 
+def chronological_model_split(
+    model_df: pd.DataFrame,
+    target: str,
+    features: list[str],
+    date_col: str | None = None,
+    preferred_test_start: str | None = None,
+) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, object]]:
+    """Split model data with a fair chronological holdout."""
+    ordered = model_df.copy()
+    if date_col and date_col in ordered.columns:
+        ordered[date_col] = pd.to_datetime(ordered[date_col], errors="coerce")
+        ordered = ordered.sort_values(date_col).reset_index(drop=True)
+    else:
+        ordered = ordered.reset_index(drop=True)
+
+    fallback_split = int(len(ordered) * 0.8)
+    fallback_split = max(1, min(fallback_split, len(ordered) - 1))
+    split = fallback_split
+    method = "80/20 chronological split"
+
+    if date_col and date_col in ordered.columns and ordered[date_col].notna().any():
+        covid_start = pd.Timestamp("2020-03-01")
+        covid_one_third = pd.Timestamp("2020-10-01")
+        spans_covid = ordered[date_col].min() < covid_start and ordered[date_col].max() >= covid_one_third
+        fallback_train_end = ordered[date_col].iloc[split - 1]
+        if spans_covid and fallback_train_end < covid_one_third:
+            covid_mask = ordered[date_col] >= covid_one_third
+            if covid_mask.any():
+                covid_split = int(np.flatnonzero(covid_mask.to_numpy())[0])
+                enough_test = len(ordered) - covid_split >= min(12, max(1, len(ordered) // 10))
+                if enough_test:
+                    split = covid_split
+                    method = "chronological split after first third of COVID regime"
+
+    if preferred_test_start and date_col and date_col in ordered.columns and ordered[date_col].notna().any():
+        preferred_date = pd.Timestamp(preferred_test_start)
+        date_mask = ordered[date_col] >= preferred_date
+        if date_mask.any():
+            preferred_split = int(np.flatnonzero(date_mask.to_numpy())[0])
+            enough_train = preferred_split >= min(24, max(1, len(ordered) - 1))
+            enough_test = len(ordered) - preferred_split >= min(12, max(1, len(ordered) // 10))
+            if enough_train and enough_test:
+                split = preferred_split
+                method = f"date-aware split from {preferred_date:%Y-%m-%d}"
+
+    train_df = ordered.iloc[:split].copy()
+    test_df = ordered.iloc[split:].copy()
+    test_start = None
+    if date_col and date_col in test_df.columns and not test_df.empty:
+        test_start = test_df[date_col].iloc[0]
+    split_info = {
+        "Method": method,
+        "Train rows": len(train_df),
+        "Test rows": len(test_df),
+        "Test start": test_start,
+    }
+    return train_df, test_df, split_info
+
+
+def add_market_event_features(df: pd.DataFrame, date_col: str | None) -> tuple[pd.DataFrame, list[str]]:
+    """Add date-only event features for major housing/macro regimes."""
+    if not date_col or date_col not in df.columns:
+        return df, []
+    out = df.copy()
+    dates = pd.to_datetime(out[date_col], errors="coerce")
+    event_specs = {
+        "event_covid_shock": ("2020-03-01", "2020-12-01"),
+        "event_post_covid": ("2021-01-01", None),
+        "event_high_inflation": ("2021-04-01", "2023-06-01"),
+        "event_rate_hike_cycle": ("2022-03-01", "2023-07-01"),
+        "event_recent_market": ("2022-01-01", None),
+    }
+    event_cols: list[str] = []
+    for col, (start, end) in event_specs.items():
+        start_date = pd.Timestamp(start)
+        mask = dates >= start_date
+        if end is not None:
+            mask &= dates <= pd.Timestamp(end)
+        out[col] = mask.fillna(False).astype(int)
+        event_cols.append(col)
+
+    covid_start = pd.Timestamp("2020-03-01")
+    months_since_covid = ((dates.dt.year - covid_start.year) * 12 + (dates.dt.month - covid_start.month)).clip(lower=0)
+    out["event_months_since_covid"] = months_since_covid.fillna(0).astype(float)
+    out["event_months_since_covid_log"] = np.log1p(out["event_months_since_covid"])
+    event_cols.extend(["event_months_since_covid", "event_months_since_covid_log"])
+    return out, event_cols
+
+
+def fit_predict_regression_series(
+    pipeline: Pipeline,
+    X_train: pd.DataFrame,
+    y_train: pd.Series,
+    X_test: pd.DataFrame,
+    train_df: pd.DataFrame | None = None,
+    target: str | None = None,
+) -> tuple[np.ndarray, Pipeline, pd.Series]:
+    """Fit regression for chronological series, predicting monthly change when possible."""
+    if train_df is None or target is None or target not in train_df.columns or len(train_df) < 3:
+        pipeline.fit(X_train, y_train)
+        return np.asarray(pipeline.predict(X_test), dtype=float), pipeline, y_train
+
+    change_train = train_df[target] - train_df[target].shift(1)
+    valid_mask = change_train.notna()
+    if int(valid_mask.sum()) < 2:
+        pipeline.fit(X_train, y_train)
+        return np.asarray(pipeline.predict(X_test), dtype=float), pipeline, y_train
+
+    X_change_train = X_train.loc[valid_mask]
+    y_change_train = change_train.loc[valid_mask]
+    pipeline.fit(X_change_train, y_change_train)
+
+    historical_changes = y_change_train.dropna()
+    change_floor = float(historical_changes.quantile(0.01))
+    change_ceiling = float(historical_changes.quantile(0.99))
+    if (historical_changes >= 0).all():
+        change_floor = 0.0
+
+    previous_value = float(train_df[target].dropna().iloc[-1])
+    predictions = []
+    for _, row in X_test.iterrows():
+        predicted_change = float(pipeline.predict(pd.DataFrame([row], columns=X_test.columns))[0])
+        predicted_change = float(np.clip(predicted_change, change_floor, change_ceiling))
+        previous_value += predicted_change
+        predictions.append(previous_value)
+    return np.asarray(predictions, dtype=float), pipeline, y_change_train
+
+
+def project_future_feature_value(
+    history: pd.Series,
+    working: pd.Series,
+    mode: str,
+) -> float:
+    """Project one future exogenous feature with conservative data-driven defaults."""
+    feature_history = pd.to_numeric(history, errors="coerce").dropna()
+    working_history = pd.to_numeric(working, errors="coerce").dropna()
+    if working_history.empty:
+        return np.nan
+
+    latest_value = float(working_history.iloc[-1])
+    if mode == "Hold latest values" or feature_history.empty:
+        return latest_value
+
+    if mode == "Repeat latest yearly pattern" and len(working) >= 12:
+        return float(working.iloc[-12])
+
+    recent_step = feature_history.diff().tail(6).median() if len(feature_history) >= 7 else 0.0
+    if pd.isna(recent_step):
+        recent_step = 0.0
+
+    if mode == "Continue recent trend":
+        projected = latest_value + float(recent_step)
+    else:
+        seasonal_step = 0.0
+        if len(working_history) >= 12:
+            seasonal_step = float((working_history.iloc[-1] - working_history.iloc[-12]) / 12)
+        projected = latest_value + (0.65 * float(recent_step)) + (0.35 * seasonal_step)
+
+    if len(feature_history) >= 20:
+        lower = float(feature_history.quantile(0.01))
+        upper = float(feature_history.quantile(0.99))
+        projected = float(np.clip(projected, lower, upper))
+    return projected
+
+
+def time_regime_sample_weights(
+    dates: pd.Series,
+    post_covid_start: str = "2020-03-01",
+    recent_months: int = 36,
+) -> np.ndarray:
+    """Give newer market regimes more influence while keeping older history useful."""
+    parsed_dates = pd.to_datetime(dates, errors="coerce")
+    weights = np.ones(len(parsed_dates), dtype=float) * 0.45
+    post_covid_date = pd.Timestamp(post_covid_start)
+    weights[parsed_dates >= post_covid_date] = 1.35
+
+    latest_date = parsed_dates.dropna().max()
+    if pd.notna(latest_date):
+        recent_start = latest_date - pd.DateOffset(months=recent_months)
+        weights[parsed_dates >= recent_start] = 2.0
+
+    weights[pd.isna(parsed_dates)] = 1.0
+    return weights
+
+
+def fit_pipeline_with_optional_weights(
+    pipeline: Pipeline,
+    X_train: pd.DataFrame,
+    y_train: pd.Series,
+    sample_weight: np.ndarray | None = None,
+) -> bool:
+    """Fit a pipeline with sample weights when the selected model supports them."""
+    if sample_weight is None:
+        pipeline.fit(X_train, y_train)
+        return False
+    try:
+        pipeline.fit(X_train, y_train, model__sample_weight=sample_weight)
+        return True
+    except (TypeError, ValueError):
+        pipeline.fit(X_train, y_train)
+        return False
+
+
 def build_supervised_with_lags(
     df: pd.DataFrame,
     date_col: str,
@@ -1398,13 +1630,18 @@ def build_supervised_with_lags(
     out = df[[date_col, target] + list(features)].copy()
     out = out.sort_values(date_col).reset_index(drop=True)
     prior_target = out[target].shift(1)
+    prior_change = out[target].diff(1).shift(1)
     for lag in lags:
         out[f"{target}_lag{lag}"] = out[target].shift(lag)
+        out[f"{target}_change_lag{lag}"] = out[target].diff(1).shift(lag)
     for window in roll_windows:
         out[f"{target}_rollmean{window}"] = prior_target.rolling(window).mean()
+        out[f"{target}_change_rollmean{window}"] = prior_change.rolling(window).mean()
+        out[f"{target}_change_rollstd{window}"] = prior_change.rolling(window).std()
     out[f"{target}_diff1"] = prior_target.diff(1)
     for feature in features:
         out[f"{feature}_lag1"] = out[feature].shift(1)
+        out[f"{feature}_change_lag1"] = out[feature].diff(1).shift(1)
     return out
 
 
@@ -1493,7 +1730,7 @@ def dashboard_search_items() -> list[dict[str, str]]:
         {"page": "Overview", "category": "Analysis", "keywords": "trend correlation target summary drivers matrix relationship", "desc": "Start here for target movement and meaningful correlations."},
         {"page": "Explore", "category": "Analysis", "keywords": "histogram box plot violin scatter distribution outliers chart visual", "desc": "Use this for visual exploration and distributions."},
         {"page": "Data Quality", "category": "Data", "keywords": "missing duplicates quality profile clean cleaning nettoyage null data preparation", "desc": "Check cleaning, missing values, duplicates, and numeric profiles."},
-        {"page": "Compare", "category": "Analysis", "keywords": "administration comparison trump biden period radar difference", "desc": "Compare selected metrics across administrations and periods."},
+        {"page": "Compare", "category": "Analysis", "keywords": "period comparison time group regime radar difference", "desc": "Compare selected metrics across neutral time periods."},
         {"page": "ML Lab", "category": "Modeling", "keywords": "machine learning regression classification model train supervised fit prediction", "desc": "Run one supervised model or compare models."},
         {"page": "Evaluation", "category": "Modeling", "keywords": "accuracy precision recall f1 auc r2 rmse mae metrics explainability best model", "desc": "Compare models and explain why the best one wins."},
         {"page": "Prediction Page", "category": "Modeling", "keywords": "predict score inference single batch model input values download predictions", "desc": "Train a model and generate single-row or batch predictions."},
@@ -1853,25 +2090,28 @@ def final_conclusion_text(
 
 
 def radar_compare(df: pd.DataFrame, metrics_cols: list[str]):
-    """Create a normalized radar chart comparing administrations across selected metrics."""
-    needed = {"Trump (2017-2020)", "Biden (2021-2024)"}
-    if not needed.issubset(set(df["administration"].unique())):
+    """Create a normalized radar chart comparing neutral time groups across selected metrics."""
+    if "time_group" not in df.columns:
         return None
-    data = df[list(metrics_cols) + ["administration"]].dropna()
+    ordered_groups = [group for group in df["time_group"].dropna().unique().tolist() if group != "Unknown"]
+    if len(ordered_groups) < 2:
+        return None
+    selected_groups = ordered_groups[:2]
+    data = df[list(metrics_cols) + ["time_group"]].dropna()
     if data.empty:
         return None
     mins = data[metrics_cols].min()
     maxs = data[metrics_cols].max()
     scaled = (data[metrics_cols] - mins) / (maxs - mins).replace(0, np.nan)
     profile = (
-        pd.concat([scaled, data["administration"]], axis=1)
-        .groupby("administration")[metrics_cols]
+        pd.concat([scaled, data["time_group"]], axis=1)
+        .groupby("time_group")[metrics_cols]
         .mean()
-        .loc[["Trump (2017-2020)", "Biden (2021-2024)"]]
+        .loc[selected_groups]
     )
     categories = metrics_cols + [metrics_cols[0]]
     fig = go.Figure()
-    for period in ["Trump (2017-2020)", "Biden (2021-2024)"]:
+    for period in selected_groups:
         values = profile.loc[period].tolist()
         fig.add_trace(
             go.Scatterpolar(
@@ -1884,7 +2124,7 @@ def radar_compare(df: pd.DataFrame, metrics_cols: list[str]):
     fig.update_layout(
         polar=dict(radialaxis=dict(visible=True, range=[0, 1])),
         height=520,
-        title="Normalized Administration Profile",
+        title="Normalized Time-Group Profile",
     )
     return fig
 
@@ -1907,23 +2147,41 @@ def make_model(
     if task_type == "Regression":
         models = {
             "Ridge": Ridge(alpha=1.0),
+            "ElasticNet": ElasticNet(alpha=0.05, l1_ratio=0.2, max_iter=5000),
+            "BayesianRidge": BayesianRidge(),
             "RandomForest": RandomForestRegressor(
-                n_estimators=300,
+                n_estimators=500,
                 random_state=random_state,
                 n_jobs=-1,
-                max_depth=8,
-                min_samples_leaf=5,
-                min_samples_split=10,
+                max_depth=None,
+                min_samples_leaf=2,
+                min_samples_split=4,
+                max_features="sqrt",
+            ),
+            "ExtraTrees": ExtraTreesRegressor(
+                n_estimators=500,
+                random_state=random_state,
+                n_jobs=-1,
+                max_depth=None,
+                min_samples_leaf=2,
+                min_samples_split=4,
                 max_features="sqrt",
             ),
             "LinearRegression": LinearRegression(),
             "SVR": SVR(kernel="rbf", C=1.0, epsilon=0.1),
             "GradientBoosting": GradientBoostingRegressor(
-                n_estimators=180,
-                learning_rate=0.04,
-                max_depth=2,
-                min_samples_leaf=5,
+                n_estimators=300,
+                learning_rate=0.03,
+                max_depth=3,
+                min_samples_leaf=3,
                 subsample=0.8,
+                random_state=random_state,
+            ),
+            "HistGradientBoosting": HistGradientBoostingRegressor(
+                max_iter=350,
+                learning_rate=0.03,
+                max_leaf_nodes=15,
+                l2_regularization=0.05,
                 random_state=random_state,
             ),
             "DecisionTree": DecisionTreeRegressor(
@@ -1933,7 +2191,7 @@ def make_model(
                 min_samples_split=16,
                 ccp_alpha=0.005,
             ),
-            "KNN": KNeighborsRegressor(n_neighbors=5),
+            "KNNRegressor": KNeighborsRegressor(n_neighbors=5),
             "NeuralNetwork": MLPRegressor(
                 hidden_layer_sizes=(32,),
                 activation="relu",
@@ -1965,7 +2223,7 @@ def make_model(
                 min_samples_split=16,
                 ccp_alpha=0.005,
             ),
-            "KNN": KNeighborsClassifier(n_neighbors=9, weights="uniform"),
+            "KNNClassifier": KNeighborsClassifier(n_neighbors=9, weights="uniform"),
             "NeuralNetwork": MLPClassifier(
                 hidden_layer_sizes=(32,),
                 activation="relu",
@@ -1983,12 +2241,30 @@ def make_model(
     if task_type == "Regression":
         if model_name == "Ridge":
             return Ridge(alpha=float(params.get("alpha", 1.0)))
+        if model_name == "ElasticNet":
+            return ElasticNet(
+                alpha=float(params.get("alpha", 0.05)),
+                l1_ratio=float(params.get("l1_ratio", 0.2)),
+                max_iter=int(params.get("max_iter", 5000)),
+            )
+        if model_name == "BayesianRidge":
+            return BayesianRidge()
         if model_name == "RandomForest":
             return RandomForestRegressor(
-                n_estimators=int(params.get("n_estimators", 300)),
+                n_estimators=int(params.get("n_estimators", 500)),
                 max_depth=params.get("max_depth"),
-                min_samples_leaf=int(params.get("min_samples_leaf", 5)),
-                min_samples_split=int(params.get("min_samples_split", 10)),
+                min_samples_leaf=int(params.get("min_samples_leaf", 2)),
+                min_samples_split=int(params.get("min_samples_split", 4)),
+                max_features=params.get("max_features", "sqrt"),
+                random_state=random_state,
+                n_jobs=-1,
+            )
+        if model_name == "ExtraTrees":
+            return ExtraTreesRegressor(
+                n_estimators=int(params.get("n_estimators", 500)),
+                max_depth=params.get("max_depth"),
+                min_samples_leaf=int(params.get("min_samples_leaf", 2)),
+                min_samples_split=int(params.get("min_samples_split", 4)),
                 max_features=params.get("max_features", "sqrt"),
                 random_state=random_state,
                 n_jobs=-1,
@@ -2002,11 +2278,19 @@ def make_model(
             )
         if model_name == "GradientBoosting":
             return GradientBoostingRegressor(
-                n_estimators=int(params.get("n_estimators", 180)),
-                learning_rate=float(params.get("learning_rate", 0.04)),
-                max_depth=int(params.get("max_depth", 2)),
-                min_samples_leaf=int(params.get("min_samples_leaf", 5)),
+                n_estimators=int(params.get("n_estimators", 300)),
+                learning_rate=float(params.get("learning_rate", 0.03)),
+                max_depth=int(params.get("max_depth", 3)),
+                min_samples_leaf=int(params.get("min_samples_leaf", 3)),
                 subsample=float(params.get("subsample", 0.8)),
+                random_state=random_state,
+            )
+        if model_name == "HistGradientBoosting":
+            return HistGradientBoostingRegressor(
+                max_iter=int(params.get("max_iter", 350)),
+                learning_rate=float(params.get("learning_rate", 0.03)),
+                max_leaf_nodes=int(params.get("max_leaf_nodes", 15)),
+                l2_regularization=float(params.get("l2_regularization", 0.05)),
                 random_state=random_state,
             )
         if model_name == "DecisionTree":
@@ -2017,7 +2301,7 @@ def make_model(
                 ccp_alpha=float(params.get("ccp_alpha", 0.005)),
                 random_state=random_state,
             )
-        if model_name == "KNN":
+        if model_name in {"KNN", "KNNRegressor"}:
             return KNeighborsRegressor(
                 n_neighbors=int(params.get("n_neighbors", 5)),
                 weights=str(params.get("weights", "uniform")),
@@ -2061,7 +2345,7 @@ def make_model(
                 ccp_alpha=float(params.get("ccp_alpha", 0.005)),
                 random_state=random_state,
             )
-        if model_name == "KNN":
+        if model_name in {"KNN", "KNNClassifier"}:
             return KNeighborsClassifier(
                 n_neighbors=int(params.get("n_neighbors", 9)),
                 weights=str(params.get("weights", "uniform")),
@@ -2117,15 +2401,19 @@ def model_options_for_task(task_type: str) -> list[str]:
     if task_type == "Regression":
         return [
             "Ridge",
+            "ElasticNet",
+            "BayesianRidge",
             "RandomForest",
+            "ExtraTrees",
             "LinearRegression",
             "SVR",
             "GradientBoosting",
+            "HistGradientBoosting",
             "DecisionTree",
-            "KNN",
+            "KNNRegressor",
             "NeuralNetwork",
         ]
-    return ["RandomForest", "LogisticRegression", "DecisionTree", "KNN", "NeuralNetwork"]
+    return ["RandomForest", "LogisticRegression", "DecisionTree", "KNNClassifier", "NeuralNetwork"]
 
 
 def classification_auc(pipeline: Pipeline, x_test: pd.DataFrame, y_test: pd.Series) -> float | None:
@@ -2601,21 +2889,24 @@ def evaluate_all_models(
     task_type: str,
     use_scaling: bool,
     scaler_name: str,
+    date_col: str | None = None,
 ) -> pd.DataFrame:
     """Train and evaluate every supported supervised model on the same split."""
-    model_df = data[[target] + features].copy().dropna(subset=[target])
-    split = int(len(model_df) * 0.8)
-    X_train, X_test = model_df[features].iloc[:split], model_df[features].iloc[split:]
-    y_train, y_test = model_df[target].iloc[:split], model_df[target].iloc[split:]
-    # The supervised ML pipeline uses an 80/20 train-test split and applies the
-    # same preprocessing and modeling steps to every candidate algorithm.
+    event_source, event_features = add_market_event_features(data, date_col)
+    model_features = list(dict.fromkeys(features + event_features))
+    model_cols = list(dict.fromkeys([target] + model_features + ([date_col] if date_col in event_source.columns else [])))
+    model_df = event_source[model_cols].copy().dropna(subset=[target])
+    train_df, test_df, split_info = chronological_model_split(model_df, target, model_features, date_col)
+    X_train, X_test = train_df[model_features], test_df[model_features]
+    y_train, y_test = train_df[target], test_df[target]
+    # The supervised ML pipeline uses a chronological train-test split and applies
+    # the same preprocessing and modeling steps to every candidate algorithm.
     rows = []
 
     if task_type == "Regression":
         for option in model_options_for_task(task_type):
             pipeline = build_model_pipeline(option, task_type, use_scaling, scaler_name)
-            pipeline.fit(X_train, y_train)
-            pred = pipeline.predict(X_test)
+            pred, _, _ = fit_predict_regression_series(pipeline, X_train, y_train, X_test, train_df, target)
             mae, rmse, r2 = regression_metrics(y_test, pred)
             rows.append(
                 {
@@ -2626,6 +2917,9 @@ def evaluate_all_models(
                     "R2": r2,
                     "Train rows": len(X_train),
                     "Test rows": len(X_test),
+                    "Feature count": len(model_features),
+                    "Event features": len(event_features),
+                    "Test start": split_info["Test start"],
                 }
             )
         return pd.DataFrame(rows).sort_values("R2", ascending=False)
@@ -2647,6 +2941,9 @@ def evaluate_all_models(
                 "ROC AUC": auc,
                 "Train rows": len(X_train),
                 "Test rows": len(X_test),
+                "Feature count": len(model_features),
+                "Event features": len(event_features),
+                "Test start": split_info["Test start"],
             }
         )
     return pd.DataFrame(rows).sort_values("F1", ascending=False)
@@ -2660,19 +2957,27 @@ def fit_best_model_for_task(
     use_scaling: bool,
     scaler_name: str,
     model_name: str,
+    date_col: str | None = None,
 ) -> tuple[Pipeline, pd.DataFrame, pd.Series]:
     """Fit one selected supervised model and return the fitted pipeline with training data."""
-    model_df = data[[target] + features].copy().dropna(subset=[target])
-    split = int(len(model_df) * 0.8)
-    X_train = model_df[features].iloc[:split]
-    y_train = model_df[target].iloc[:split]
-    # This function only trains on the first 80% of rows; held-out rows are for
-    # test/evaluation consistency. Future forecasts refit separately on all usable
-    # history after evaluation.
+    event_source, event_features = add_market_event_features(data, date_col)
+    model_features = list(dict.fromkeys(features + event_features))
+    model_cols = list(dict.fromkeys([target] + model_features + ([date_col] if date_col in event_source.columns else [])))
+    model_df = event_source[model_cols].copy().dropna(subset=[target])
+    train_df, test_df, _ = chronological_model_split(model_df, target, model_features, date_col)
+    X_train = train_df[model_features]
+    y_train = train_df[target]
+    # This function trains on the chronological training period; held-out rows are
+    # for test/evaluation consistency. Future forecasts refit separately on all
+    # usable history after evaluation.
     if task_type == "Classification":
-        y_train, _ = make_classification_labels(y_train, model_df[target].iloc[split:])
+        y_train, _ = make_classification_labels(y_train, test_df[target])
     pipeline = build_model_pipeline(model_name, task_type, use_scaling, scaler_name)
-    pipeline.fit(X_train, y_train)
+    if task_type == "Regression":
+        _, pipeline, y_train = fit_predict_regression_series(pipeline, X_train, y_train, X_train.iloc[0:0], train_df, target)
+        X_train = X_train.loc[y_train.index]
+    else:
+        pipeline.fit(X_train, y_train)
     return pipeline, X_train, y_train
 
 
@@ -2738,12 +3043,17 @@ def hyperparameter_fix_recommendation(model_name: str, diagnosis: str, task_type
     if diagnosis == "Overfitting risk":
         fixes = {
             "RandomForest": "Reduce `max_depth`, increase `min_samples_leaf`, increase `min_samples_split`, or use fewer/noisier features.",
+            "ExtraTrees": "Reduce `max_depth`, increase `min_samples_leaf`, increase `min_samples_split`, or use fewer/noisier features.",
             "GradientBoosting": "Lower `learning_rate`, reduce `max_depth`, reduce `n_estimators`, or add early stopping with validation data.",
+            "HistGradientBoosting": "Lower `learning_rate`, reduce `max_leaf_nodes`, increase `l2_regularization`, or add better validation.",
             "DecisionTree": "Set a smaller `max_depth`, increase `min_samples_leaf`, and prune the tree with `ccp_alpha`.",
-            "KNN": "Increase `n_neighbors`, scale features, and remove noisy features.",
+            "KNNRegressor": "Increase `n_neighbors`, scale features, and remove noisy features.",
+            "KNNClassifier": "Increase `n_neighbors`, scale features, and remove noisy features.",
             "NeuralNetwork": "Increase `alpha`, use smaller hidden layers, keep `early_stopping=True`, or reduce `max_iter` if it memorizes.",
             "SVR": "Reduce `C`, increase `epsilon`, tune `gamma`, and scale features.",
             "Ridge": "Increase `alpha` to add stronger regularization.",
+            "ElasticNet": "Increase `alpha`, lower noisy features, or tune `l1_ratio` toward more regularization.",
+            "BayesianRidge": "Remove noisy features or compare with Ridge/ElasticNet if uncertainty regularization is not enough.",
             "LinearRegression": "Switch to Ridge/Lasso-style regularization or reduce high-leakage/noisy features.",
             "LogisticRegression": "Decrease `C` to strengthen regularization and remove noisy features.",
         }
@@ -2751,12 +3061,17 @@ def hyperparameter_fix_recommendation(model_name: str, diagnosis: str, task_type
     if diagnosis == "Underfitting risk":
         fixes = {
             "RandomForest": "Increase `n_estimators`, allow deeper trees with larger `max_depth`, or add stronger predictive features.",
+            "ExtraTrees": "Increase `n_estimators`, allow deeper trees with larger `max_depth`, or add stronger predictive features.",
             "GradientBoosting": "Increase `n_estimators`, raise `learning_rate` carefully, allow deeper trees, or add better features.",
+            "HistGradientBoosting": "Increase `max_iter`, raise `learning_rate` carefully, allow more leaf nodes, or add better features.",
             "DecisionTree": "Increase `max_depth`, lower `min_samples_leaf`, or use RandomForest/GradientBoosting instead.",
-            "KNN": "Decrease `n_neighbors`, try distance weighting, and make sure features are scaled.",
+            "KNNRegressor": "Decrease `n_neighbors`, try distance weighting, and make sure features are scaled.",
+            "KNNClassifier": "Decrease `n_neighbors`, try distance weighting, and make sure features are scaled.",
             "NeuralNetwork": "Increase hidden-layer size, reduce `alpha`, train longer, or add better scaled features.",
             "SVR": "Increase `C`, tune `gamma`, lower `epsilon`, and scale features.",
             "Ridge": "Lower `alpha`, add non-linear features, or try tree-based models.",
+            "ElasticNet": "Lower `alpha`, tune `l1_ratio`, add non-linear features, or try tree-based models.",
+            "BayesianRidge": "Add non-linear features or try boosted/tree-based models.",
             "LinearRegression": "Add interaction/lag features or try RandomForest/GradientBoosting for non-linear patterns.",
             "LogisticRegression": "Increase `C`, add useful features, or try tree-based classifiers.",
         }
@@ -2778,12 +3093,16 @@ def diagnose_model_fit(
     scaler_name: str,
     models_to_check: list[str],
     custom_hyperparameters: dict[str, dict[str, object]] | None = None,
+    date_col: str | None = None,
 ) -> pd.DataFrame:
     """Evaluate train/test behavior to flag overfitting and underfitting."""
-    model_df = data[[target] + features].copy().dropna(subset=[target])
-    split = int(len(model_df) * 0.8)
-    X_train, X_test = model_df[features].iloc[:split], model_df[features].iloc[split:]
-    y_train, y_test = model_df[target].iloc[:split], model_df[target].iloc[split:]
+    event_source, event_features = add_market_event_features(data, date_col)
+    model_features = list(dict.fromkeys(features + event_features))
+    model_cols = list(dict.fromkeys([target] + model_features + ([date_col] if date_col in event_source.columns else [])))
+    model_df = event_source[model_cols].copy().dropna(subset=[target])
+    train_df, test_df, split_info = chronological_model_split(model_df, target, model_features, date_col)
+    X_train, X_test = train_df[model_features], test_df[model_features]
+    y_train, y_test = train_df[target], test_df[target]
     rows = []
 
     if task_type == "Classification":
@@ -2842,6 +3161,8 @@ def diagnose_model_fit(
                     "Test MAE": np.nan,
                     "Train RMSE": np.nan,
                     "Test RMSE": np.nan,
+                    "Test start": split_info["Test start"],
+                    "Event features": len(event_features),
                     "Hyperparameters": str(model_params or "Default"),
                     "What to fix": f"Model could not run with the selected setup: {err}",
                 }
@@ -2879,6 +3200,8 @@ def diagnose_model_fit(
                 "Test MAE": test_mae,
                 "Train RMSE": train_rmse,
                 "Test RMSE": test_rmse,
+                "Test start": split_info["Test start"],
+                "Event features": len(event_features),
                 "Hyperparameters": str(model_params or "Default"),
                 "What to fix": hyperparameter_fix_recommendation(model_name, diagnosis, task_type),
             }
@@ -2972,13 +3295,13 @@ def hyperparameter_definitions_table() -> pd.DataFrame:
             },
             {
                 "Hyperparameter": "n_neighbors",
-                "Used by": "KNN",
+                "Used by": "KNNRegressor, KNNClassifier",
                 "Definition": "Number of nearby training rows used to make each prediction.",
                 "Higher value usually means": "Smoother predictions and less sensitivity to noise.",
             },
             {
                 "Hyperparameter": "weights",
-                "Used by": "KNN",
+                "Used by": "KNNRegressor, KNNClassifier",
                 "Definition": "Whether all neighbors count equally or closer neighbors count more.",
                 "Higher value usually means": "`distance` is more local; `uniform` is smoother.",
             },
@@ -3044,7 +3367,7 @@ def render_hyperparameter_controls(model_name: str, task_type: str, tuning_goal:
         st.info("LinearRegression has no main regularization hyperparameter. Use Ridge, remove noisy features, or add better features.")
         return params
 
-    if model_name in {"RandomForest", "GradientBoosting"}:
+    if model_name in {"RandomForest", "ExtraTrees", "GradientBoosting"}:
         default_estimators = 200 if overfit else 500 if underfit else 300
         params["n_estimators"] = st.slider("Number of trees / estimators", 50, 800, default_estimators, 50)
         max_depth_options = [None, 2, 3, 4, 5, 8, 12, 16, 24]
@@ -3062,7 +3385,7 @@ def render_hyperparameter_controls(model_name: str, task_type: str, tuning_goal:
             8 if overfit else 2 if underfit else 5,
             help="Higher values smooth the model and reduce overfitting.",
         )
-        if model_name == "RandomForest":
+        if model_name in {"RandomForest", "ExtraTrees"}:
             params["min_samples_split"] = st.slider("Minimum samples to split", 2, 40, 14 if overfit else 4 if underfit else 10)
             params["max_features"] = st.selectbox(
                 "Features considered at each split",
@@ -3087,6 +3410,17 @@ def render_hyperparameter_controls(model_name: str, task_type: str, tuning_goal:
                 0.05,
                 help="Lower values add randomness and reduce overfitting.",
             )
+    elif model_name == "HistGradientBoosting":
+        params["max_iter"] = st.slider("Boosting iterations", 50, 800, 250 if overfit else 500 if underfit else 350, 50)
+        params["learning_rate"] = st.slider("Learning rate", 0.01, 0.30, 0.03 if overfit else 0.12 if underfit else 0.05, 0.01)
+        params["max_leaf_nodes"] = st.slider("Maximum leaf nodes", 5, 63, 10 if overfit else 31 if underfit else 15)
+        params["l2_regularization"] = st.slider("L2 regularization", 0.0, 2.0, 0.20 if overfit else 0.0 if underfit else 0.05, 0.05)
+    elif model_name == "ElasticNet":
+        params["alpha"] = st.slider("Regularization strength (alpha)", 0.001, 10.0, 0.10 if overfit else 0.01 if underfit else 0.05)
+        params["l1_ratio"] = st.slider("L1 ratio", 0.0, 1.0, 0.35 if overfit else 0.05 if underfit else 0.2, 0.05)
+        params["max_iter"] = 5000
+    elif model_name == "BayesianRidge":
+        st.info("BayesianRidge tunes its regularization internally. Try feature selection or compare with ElasticNet/boosted trees.")
     elif model_name == "DecisionTree":
         max_depth_options = [None, 2, 3, 4, 5, 8, 12, 16, 24]
         default_depth = 3 if overfit else 12 if underfit else 5
@@ -3094,7 +3428,7 @@ def render_hyperparameter_controls(model_name: str, task_type: str, tuning_goal:
         params["min_samples_leaf"] = st.slider("Minimum samples per leaf", 1, 40, 10 if overfit else 1 if underfit else 3)
         params["min_samples_split"] = st.slider("Minimum samples to split", 2, 50, 16 if overfit else 2)
         params["ccp_alpha"] = st.slider("Pruning strength (ccp_alpha)", 0.0, 0.05, 0.01 if overfit else 0.0, 0.001)
-    elif model_name == "KNN":
+    elif model_name in {"KNN", "KNNRegressor", "KNNClassifier"}:
         params["n_neighbors"] = st.slider(
             "Number of neighbors",
             1,
@@ -3560,7 +3894,7 @@ def pipeline_stage_table(df: pd.DataFrame, date_col: str | None, target: str | N
                 "Stage": "Cleaning",
                 "Status": "Complete",
                 "Output": f"Date column: {date_col or 'not detected'}",
-                "Purpose": "Standardize dates, numeric columns, and administration periods.",
+                "Purpose": "Standardize dates, numeric columns, and neutral time periods.",
             },
             {
                 "Stage": "Feature selection",
@@ -3695,13 +4029,18 @@ def model_family_reason(model_name: str) -> str:
     """Explain the practical strengths and limits of a model family."""
     reasons = {
         "RandomForest": "RandomForest often performs well because it captures non-linear relationships and interactions between housing indicators without requiring one straight-line pattern.",
+        "ExtraTrees": "ExtraTrees is a strong tabular baseline because it averages many randomized trees, often reducing variance compared with one decision tree.",
         "GradientBoosting": "GradientBoosting can score highly because it builds many small corrections, which helps when housing movement is driven by several weak signals together.",
+        "HistGradientBoosting": "HistGradientBoosting is a fast boosted-tree model that can capture non-linear thresholds while staying regularized on medium-sized tabular data.",
         "NeuralNetwork": "NeuralNetwork can learn flexible non-linear patterns, but it needs enough clean rows; on small datasets it can also underperform simpler models.",
         "Ridge": "Ridge is stable and useful when the relationship is mostly linear, but it can miss curved or threshold effects in housing data.",
+        "ElasticNet": "ElasticNet adds stronger regularization and feature selection pressure, which can help when many variables are correlated.",
+        "BayesianRidge": "BayesianRidge is a stable linear baseline that estimates regularization from the data, often useful on small noisy datasets.",
         "LinearRegression": "LinearRegression is easy to interpret, but it usually scores lower when the market has non-linear shocks or interacting variables.",
         "SVR": "SVR can model non-linear patterns, but it is sensitive to scaling, feature choice, and parameter settings.",
         "DecisionTree": "DecisionTree is easy to read, but one tree can overfit training patterns and generalize poorly to the test period.",
-        "KNN": "KNN depends on similar historical examples; it can struggle when the newest market period is different from older periods.",
+        "KNNRegressor": "KNNRegressor depends on similar historical examples; it can struggle when the newest market period is different from older periods.",
+        "KNNClassifier": "KNNClassifier depends on similar historical examples; it can struggle when the newest market period is different from older periods.",
         "LogisticRegression": "LogisticRegression is strong for simple class boundaries, but it can score lower when Low/Medium/High classes overlap.",
     }
     return reasons.get(model_name, "This model performs differently because each algorithm learns a different shape from the same features.")
@@ -3914,7 +4253,7 @@ st.dataframe(forecast, width="stretch")
         return f"""# Add this inside a Streamlit tab for a reusable chart section.
 x_col = "{x_col}"
 y_col = "{y_col}"
-color_col = "administration" if "administration" in df.columns else None
+color_col = "time_group" if "time_group" in df.columns else None
 chart_df = df[[x_col, y_col] + ([color_col] if color_col else [])].dropna()
 fig = px.line(chart_df, x=x_col, y=y_col, color=color_col, markers=True, title=f"{{y_col}} over time")
 st.plotly_chart(fig, width="stretch")
@@ -4576,6 +4915,16 @@ else:
 # the same prepared dataset and labels.
 df, date_col, cleaning_report = prepare_dataset(raw_df)
 base_prepared_df = df.copy()
+if "time_group" not in df.columns:
+    if date_col and date_col in df.columns and df[date_col].notna().any():
+        df["time_group"] = df[date_col].apply(time_group_label)
+    else:
+        df["time_group"] = "Unknown"
+if "time_group" not in base_prepared_df.columns:
+    if date_col and date_col in base_prepared_df.columns and base_prepared_df[date_col].notna().any():
+        base_prepared_df["time_group"] = base_prepared_df[date_col].apply(time_group_label)
+    else:
+        base_prepared_df["time_group"] = "Unknown"
 
 with st.sidebar:
     st.divider()
@@ -4586,7 +4935,7 @@ with st.sidebar:
         col for col in studio_numeric_cols if int(base_prepared_df[col].isna().sum()) > 0
     ]
     studio_drop_candidates = [
-        col for col in base_prepared_df.columns if col not in {"administration", date_col}
+        col for col in base_prepared_df.columns if col not in {"time_group", date_col}
     ]
     with st.expander("Cleaning actions", expanded=False):
         studio_remove_duplicates = st.checkbox("Remove duplicate rows", value=True, key="studio_remove_duplicates")
@@ -4666,6 +5015,11 @@ df, date_col, studio_report = apply_cleaning_studio(
     studio_outlier_strategy,
     studio_outlier_factor,
 )
+if "time_group" not in df.columns:
+    if date_col and date_col in df.columns and df[date_col].notna().any():
+        df["time_group"] = df[date_col].apply(time_group_label)
+    else:
+        df["time_group"] = "Unknown"
 studio_before_health = dataset_health(base_prepared_df)
 studio_after_health = dataset_health(df)
 st.session_state.cleaning_studio_report = studio_report
@@ -5231,7 +5585,7 @@ with metric_cols[2]:
 with metric_cols[3]:
     metric_card("Missing cells", f"{int(df.isna().sum().sum()):,}")
 with metric_cols[4]:
-    metric_card("Time groups", f"{df['administration'].nunique():,}")
+    metric_card("Time groups", f"{df['time_group'].nunique():,}")
 
 if show_raw:
     # Raw preview is intentionally optional because wide CSVs can take space on
@@ -5358,7 +5712,7 @@ with tabs[1]:
                 chart_df,
                 x=date_col,
                 y=target_default,
-                color="administration",
+                color="time_group",
                 markers=True,
                 title=f"{target_default} over time",
             )
@@ -5504,7 +5858,7 @@ with tabs[2]:
             else:
                 metric = st.selectbox("Metric", num_cols, index=num_cols.index(target_default), key="line_metric")
                 rolling = st.slider("Rolling window", 2, 24, 6)
-                chart_df = df[[date_col, metric, "administration"]].dropna().sort_values(date_col)
+                chart_df = df[[date_col, metric, "time_group"]].dropna().sort_values(date_col)
                 chart_df = limit_rows_for_display(chart_df, max_chart_rows if performance_mode else 0, date_col)
                 chart_df["rolling_mean"] = chart_df[metric].rolling(rolling).mean()
                 fig = px.line(chart_df, x=date_col, y=[metric, "rolling_mean"], title=f"{metric} trend")
@@ -5514,7 +5868,7 @@ with tabs[2]:
             y_index = 1 if len(num_cols) > 1 else 0
             y_col = st.selectbox("Y", num_cols, index=y_index, key="scatter_y")
             chart_df = limit_rows_for_display(df, max_chart_rows if performance_mode else 0, date_col)
-            fig = px.scatter(chart_df, x=x_col, y=y_col, color="administration", trendline="ols", opacity=0.7)
+            fig = px.scatter(chart_df, x=x_col, y=y_col, color="time_group", trendline="ols", opacity=0.7)
             fig.update_layout(height=520)
             st.plotly_chart(fig, width="stretch")
         elif chart_type == "Histogram":
@@ -5524,7 +5878,7 @@ with tabs[2]:
             fig = px.histogram(
                 chart_df,
                 x=metric,
-                color="administration",
+                color="time_group",
                 marginal="box",
                 nbins=bins,
                 title=f"Histogram of {metric}",
@@ -5541,7 +5895,7 @@ with tabs[2]:
             chart_df = limit_rows_for_display(df, max_chart_rows if performance_mode else 0, date_col)
             fig = px.box(
                 chart_df,
-                x="administration",
+                x="time_group",
                 y=metric,
                 points="outliers" if show_points else False,
                 title=f"Box Plot of {metric} by Time Group",
@@ -5557,12 +5911,12 @@ with tabs[2]:
             chart_df = limit_rows_for_display(df, max_chart_rows if performance_mode else 0, date_col)
             fig = px.violin(
                 chart_df,
-                x="administration",
+                x="time_group",
                 y=metric,
-                color="administration",
+                color="time_group",
                 box=True,
                 points="outliers",
-                title=f"Violin Plot of {metric} by Administration",
+                title=f"Violin Plot of {metric} by Time Group",
             )
             fig.update_layout(height=540, showlegend=False)
             st.plotly_chart(fig, width="stretch")
@@ -5630,7 +5984,7 @@ with tabs[3]:
 
 with tabs[4]:
     # Period Comparison creates a simple grouped view for explaining differences
-    # between time windows or the bundled housing demo's administration periods.
+    # between neutral time windows.
     st.subheader("Period Comparison")
     if not num_cols:
         st.info("No numeric measures are available for comparison.")
@@ -5642,45 +5996,33 @@ with tabs[4]:
             key="compare_metrics",
         )
         if selected_metrics:
-            grouped = df.groupby("administration")[selected_metrics].agg(["mean", "median", "std"]).round(3)
+            grouped = df.groupby("time_group")[selected_metrics].agg(["mean", "median", "std"]).round(3)
             st.dataframe(grouped, width="stretch")
 
-            if {"Trump (2017-2020)", "Biden (2021-2024)"} <= set(df["administration"].unique()):
-                means = df.groupby("administration")[selected_metrics].mean(numeric_only=True)
-                delta = (means.loc["Biden (2021-2024)"] - means.loc["Trump (2017-2020)"]).sort_values()
-                fig = px.bar(
-                    delta,
-                    orientation="h",
-                    labels={"value": "Biden mean - Trump mean", "index": "Metric"},
-                    title="Mean Difference: Biden Period minus Trump Period",
-                )
-                fig.update_layout(height=440)
-                st.plotly_chart(fig, width="stretch")
+            means = df.groupby("time_group")[selected_metrics].mean(numeric_only=True)
+            long_means = means.reset_index().melt(
+                id_vars="time_group",
+                var_name="Metric",
+                value_name="Mean",
+            )
+            st.caption("The active dataset is shown by automatically generated neutral time groups.")
+            st.plotly_chart(
+                px.bar(
+                    long_means,
+                    x="time_group",
+                    y="Mean",
+                    color="Metric",
+                    barmode="group",
+                    title="Mean by Time Group",
+                ),
+                width="stretch",
+            )
 
-                radar_cols = selected_metrics[: min(8, len(selected_metrics))]
-                if len(radar_cols) >= 3:
-                    radar = radar_compare(df, radar_cols)
-                    if radar:
-                        st.plotly_chart(radar, width="stretch")
-            else:
-                means = df.groupby("administration")[selected_metrics].mean(numeric_only=True)
-                long_means = means.reset_index().melt(
-                    id_vars="administration",
-                    var_name="Metric",
-                    value_name="Mean",
-                )
-                st.caption("The active dataset is shown by automatically generated time groups.")
-                st.plotly_chart(
-                    px.bar(
-                        long_means,
-                        x="administration",
-                        y="Mean",
-                        color="Metric",
-                        barmode="group",
-                        title="Mean by Time Group",
-                    ),
-                    width="stretch",
-                )
+            radar_cols = selected_metrics[: min(8, len(selected_metrics))]
+            if len(radar_cols) >= 3:
+                radar = radar_compare(df, radar_cols)
+                if radar:
+                    st.plotly_chart(radar, width="stretch")
 
 
 with tabs[5]:
@@ -5735,16 +6077,26 @@ with tabs[5]:
                 )
 
             modeling_source = limit_rows_for_display(df, max_model_rows if performance_mode else 0, date_col)
-            model_df = modeling_source[[target] + features].copy().dropna(subset=[target])
+            event_modeling_source, event_features = add_market_event_features(modeling_source, date_col)
+            model_features = list(dict.fromkeys(features + event_features))
+            model_cols = list(dict.fromkeys([target] + model_features + ([date_col] if date_col in event_modeling_source.columns else [])))
+            model_df = event_modeling_source[model_cols].copy().dropna(subset=[target])
             if performance_mode and len(df) > len(modeling_source):
                 st.caption(f"Performance mode: modeling uses {len(modeling_source):,} sampled rows from {len(df):,} filtered rows.")
             min_rows = 20 if task_type == "Regression" else 30
             if len(model_df) < min_rows:
                 st.warning(f"Need at least {min_rows} rows after filtering for a reliable model run.")
             else:
-                split = int(len(model_df) * 0.8)
-                X_train, X_test = model_df[features].iloc[:split], model_df[features].iloc[split:]
-                y_train, y_test = model_df[target].iloc[:split], model_df[target].iloc[split:]
+                train_df, test_df, split_info = chronological_model_split(model_df, target, model_features, date_col)
+                X_train, X_test = train_df[model_features], test_df[model_features]
+                y_train, y_test = train_df[target], test_df[target]
+                if split_info["Test start"] is not None:
+                    test_start = pd.Timestamp(split_info["Test start"])
+                    st.caption(
+                        f"Chronological evaluation starts at `{test_start:%Y-%m-%d}` "
+                        f"({split_info['Train rows']:,} train rows, {split_info['Test rows']:,} test rows). "
+                        f"The model also receives `{len(event_features)}` date-only event/regime features."
+                    )
 
                 run_col, compare_col = st.columns([1, 1])
                 run_single = run_col.button("Run selected model", type="primary")
@@ -5757,8 +6109,14 @@ with tabs[5]:
                     if task_type == "Regression":
                         for option in model_options:
                             pipeline = build_model_pipeline(option, task_type, use_scaling, scaler_name)
-                            pipeline.fit(X_train, y_train)
-                            pred = pipeline.predict(X_test)
+                            pred, _, _ = fit_predict_regression_series(
+                                pipeline,
+                                X_train,
+                                y_train,
+                                X_test,
+                                train_df,
+                                target,
+                            )
                             mae, rmse, r2 = regression_metrics(y_test, pred)
                             rows.append(
                                 {
@@ -5769,6 +6127,9 @@ with tabs[5]:
                                     "R2": r2,
                                     "Train rows": len(X_train),
                                     "Test rows": len(X_test),
+                                    "Feature count": len(model_features),
+                                    "Event features": len(event_features),
+                                    "Test start": split_info["Test start"],
                                 }
                             )
                         comparison = pd.DataFrame(rows).sort_values("R2", ascending=False)
@@ -5811,6 +6172,9 @@ with tabs[5]:
                                             "ROC AUC": roc_auc,
                                             "Train rows": len(X_train),
                                             "Test rows": len(X_test),
+                                            "Feature count": len(model_features),
+                                            "Event features": len(event_features),
+                                            "Test start": split_info["Test start"],
                                             "Status": "OK",
                                         }
                                     )
@@ -5826,6 +6190,9 @@ with tabs[5]:
                                             "ROC AUC": np.nan,
                                             "Train rows": len(X_train),
                                             "Test rows": len(X_test),
+                                            "Feature count": len(model_features),
+                                            "Event features": len(event_features),
+                                            "Test start": split_info["Test start"],
                                             "Status": f"Failed: {err}",
                                         }
                                     )
@@ -5842,8 +6209,14 @@ with tabs[5]:
                     pipeline = build_model_pipeline(model_choice, task_type, use_scaling, scaler_name)
 
                     if task_type == "Regression":
-                        pipeline.fit(X_train, y_train)
-                        pred = pipeline.predict(X_test)
+                        pred, pipeline, fit_y_train = fit_predict_regression_series(
+                            pipeline,
+                            X_train,
+                            y_train,
+                            X_test,
+                            train_df,
+                            target,
+                        )
                         mae, rmse, r2 = regression_metrics(y_test, pred)
                         render_regression_metric_values(mae, rmse, r2, y_test)
                         if "ml_results" not in st.session_state:
@@ -5862,23 +6235,44 @@ with tabs[5]:
                             "Mean gap": float(np.mean(pred) - np.mean(y_test)),
                         }
                         result_df = pd.DataFrame({"actual": y_test.values, "predicted": pred})
+                        if date_col and date_col in test_df.columns and date_col in train_df.columns:
+                            result_df[date_col] = test_df[date_col].values
+                            result_df = pd.concat(
+                                [
+                                    pd.DataFrame(
+                                        {
+                                            date_col: [train_df[date_col].iloc[-1]],
+                                            "actual": [y_train.iloc[-1]],
+                                            "predicted": [y_train.iloc[-1]],
+                                        }
+                                    ),
+                                    result_df,
+                                ],
+                                ignore_index=True,
+                            )
                         prediction_chart_col, prediction_text_col = st.columns([2, 1])
                         with prediction_chart_col:
-                            st.plotly_chart(px.line(result_df, y=["actual", "predicted"]), width="stretch")
+                            if date_col and date_col in result_df.columns:
+                                st.plotly_chart(
+                                    px.line(result_df, x=date_col, y=["actual", "predicted"]),
+                                    width="stretch",
+                                )
+                            else:
+                                st.plotly_chart(px.line(result_df, y=["actual", "predicted"]), width="stretch")
                         with prediction_text_col:
                             st.markdown("##### Prediction interpretation")
                             st.info(regression_prediction_interpretation(y_test, pred))
 
                         # Cross-validation is capped by available rows so small
                         # demo datasets do not fail with too many folds.
-                        cv = min(5, len(X_train))
+                        cv = min(5, len(fit_y_train))
                         if cv >= 2:
-                            cv_r2 = cross_val_score(pipeline, X_train, y_train, cv=cv, scoring="r2")
+                            cv_r2 = cross_val_score(pipeline, X_train.loc[fit_y_train.index], fit_y_train, cv=cv, scoring="r2")
                             st.caption(f"Cross-validation R2: {cv_r2.mean():.3f} +/- {cv_r2.std():.3f}")
 
                         fitted = pipeline.named_steps["model"]
                         if hasattr(fitted, "feature_importances_"):
-                            importance = pd.Series(fitted.feature_importances_, index=features).sort_values()
+                            importance = pd.Series(fitted.feature_importances_, index=model_features).sort_values()
                             feature_chart_col, feature_text_col = st.columns([2, 1])
                             with feature_chart_col:
                                 st.plotly_chart(px.bar(importance, orientation="h"), width="stretch")
@@ -5886,7 +6280,7 @@ with tabs[5]:
                                 st.markdown("##### Feature interpretation")
                                 st.info(feature_effect_interpretation(importance, "importance"))
                         elif hasattr(fitted, "coef_"):
-                            coef = pd.Series(np.ravel(fitted.coef_), index=features).sort_values()
+                            coef = pd.Series(np.ravel(fitted.coef_), index=model_features).sort_values()
                             feature_chart_col, feature_text_col = st.columns([2, 1])
                             with feature_chart_col:
                                 st.plotly_chart(px.bar(coef, orientation="h"), width="stretch")
@@ -5906,7 +6300,7 @@ with tabs[5]:
                                 st.error(f"Could not train `{model_choice}`: {err}")
                                 pred = None
                             if pred is None:
-                                st.info("Try RandomForest, LogisticRegression, DecisionTree, or KNN for this classification split.")
+                                st.info("Try RandomForest, LogisticRegression, DecisionTree, or KNNClassifier for this classification split.")
                             else:
                                 acc = accuracy_score(y_test_binned, pred)
                                 prec = precision_score(y_test_binned, pred, average="weighted", zero_division=0)
@@ -6128,6 +6522,7 @@ with tabs[6]:
                         eval_task,
                         eval_scale,
                         eval_scaler,
+                        date_col,
                     )
                 except Exception as err:
                     st.error(f"Could not evaluate models: {err}")
@@ -6144,6 +6539,10 @@ with tabs[6]:
             task = st.session_state.get("evaluation_task", eval_task)
             st.markdown("#### Evaluation Metrics Table")
             st.dataframe(evaluation, width="stretch", hide_index=True)
+            st.caption(
+                "For regression, compare R2, MAE, and RMSE rather than accuracy. "
+                "Adding variables only changes the score when those variables add useful signal in the chronological test period."
+            )
 
             if task == "Regression":
                 best = evaluation.sort_values("R2", ascending=False).iloc[0]
@@ -6233,12 +6632,24 @@ with tabs[6]:
                     diagnostic_features = st.session_state.get("evaluation_features", eval_features)
                     diagnostic_scale = st.session_state.get("evaluation_scale", eval_scale)
                     diagnostic_scaler = st.session_state.get("evaluation_scaler", eval_scaler)
-                    diagnostic_df = df[[diagnostic_target] + diagnostic_features].copy().dropna(subset=[diagnostic_target])
-                    diagnostic_split = int(len(diagnostic_df) * 0.8)
-                    diagnostic_x_train = diagnostic_df[diagnostic_features].iloc[:diagnostic_split]
-                    diagnostic_x_test = diagnostic_df[diagnostic_features].iloc[diagnostic_split:]
-                    diagnostic_y_train = diagnostic_df[diagnostic_target].iloc[:diagnostic_split]
-                    diagnostic_y_test = diagnostic_df[diagnostic_target].iloc[diagnostic_split:]
+                    diagnostic_cols = list(
+                        dict.fromkeys(
+                            [diagnostic_target]
+                            + diagnostic_features
+                            + ([date_col] if date_col in df.columns else [])
+                        )
+                    )
+                    diagnostic_df = df[diagnostic_cols].copy().dropna(subset=[diagnostic_target])
+                    diagnostic_train_df, diagnostic_test_df, _ = chronological_model_split(
+                        diagnostic_df,
+                        diagnostic_target,
+                        diagnostic_features,
+                        date_col,
+                    )
+                    diagnostic_x_train = diagnostic_train_df[diagnostic_features]
+                    diagnostic_x_test = diagnostic_test_df[diagnostic_features]
+                    diagnostic_y_train = diagnostic_train_df[diagnostic_target]
+                    diagnostic_y_test = diagnostic_test_df[diagnostic_target]
                     diagnostic_y_train, diagnostic_y_test = make_classification_labels(
                         diagnostic_y_train,
                         diagnostic_y_test,
@@ -6285,10 +6696,11 @@ with tabs[6]:
                         eval_scale,
                         eval_scaler,
                         best_model_name,
+                        date_col,
                     )
                     importance = model_feature_importance(
                         explain_pipeline,
-                        eval_features,
+                        explain_X.columns.tolist(),
                         explain_X,
                         explain_y,
                         task,
@@ -6675,40 +7087,97 @@ with tabs[9]:
     else:
         target = st.selectbox("Target to forecast", num_cols, index=num_cols.index(target_default), key="fc_target")
         exog = st.multiselect(
-            "Exogenous features held at latest value",
+            "Exogenous features used in the future forecast",
             [col for col in num_cols if col != target],
             default=[col for col in num_cols if col != target][: min(6, max(len(num_cols) - 1, 0))],
         )
         horizon = st.slider("Horizon in months", 3, 36, 12)
+        exog_future_mode = st.selectbox(
+            "Future exogenous assumption",
+            [
+                "Auto realistic projection",
+                "Continue recent trend",
+                "Hold latest values",
+                "Repeat latest yearly pattern",
+            ],
+            index=0,
+            help="Auto blends recent trend and yearly behavior, then clips values to the historical range.",
+        )
         model_choice = st.selectbox(
             "Forecast model",
-            ["Ridge", "RandomForest", "LinearRegression", "SVR", "GradientBoosting", "DecisionTree", "KNN"],
+            [
+                "Ridge",
+                "ElasticNet",
+                "BayesianRidge",
+                "RandomForest",
+                "ExtraTrees",
+                "LinearRegression",
+                "SVR",
+                "GradientBoosting",
+                "HistGradientBoosting",
+                "DecisionTree",
+                "KNNRegressor",
+            ],
             index=0,
         )
         st.caption(
             "The train/test split is used for model evaluation. When you generate a future forecast, "
-            "the selected model is refit on the full usable historical dataset."
+            "the selected model is refit on the full usable historical dataset. Selected exogenous features "
+            "use the future assumption above."
         )
         base = df[[date_col, target] + exog].copy().sort_values(date_col).reset_index(drop=True)
         for feature in exog:
             base[feature] = base[feature].ffill()
+        base_with_events, forecast_event_features = add_market_event_features(base, date_col)
+        forecast_features = list(dict.fromkeys(exog + forecast_event_features))
         # Build supervised rows from time-series history so standard regression
         # models can be used for a simple multi-step forecast.
-        supervised = build_supervised_with_lags(base, date_col, target, exog).dropna(subset=[target])
+        supervised = build_supervised_with_lags(base_with_events, date_col, target, forecast_features).dropna(subset=[target])
         feature_cols = [col for col in supervised.columns if col not in [date_col, target]]
 
         if len(supervised.dropna(subset=feature_cols)) < 20:
             st.warning("Not enough complete lagged rows to produce a useful forecast.")
         elif st.button("Generate forecast", type="primary"):
-            # Forecast recursively: each new prediction becomes part of the
-            # working history used to predict the following month.
+            # Forecast directly by horizon: the model learns historical
+            # 1-month, 2-month, ... ahead cumulative changes instead of
+            # repeating the same one-step prediction recursively.
             full_forecast_train = supervised.dropna(subset=feature_cols)
-            forecast_train = full_forecast_train.copy()
-            forecast_train["__target_change__"] = forecast_train[target] - forecast_train[f"{target}_lag1"]
-            forecast_train = forecast_train.dropna(subset=["__target_change__"])
-            historical_changes = forecast_train["__target_change__"].dropna()
-            change_floor = float(historical_changes.quantile(0.01))
-            change_ceiling = float(historical_changes.quantile(0.99))
+            max_train_horizon = min(horizon, 24, max(1, len(full_forecast_train) // 4))
+            horizon_feature_cols = ["__horizon__", "__horizon_sqrt__", "__horizon_sq__"]
+            future_feature_cols = [f"{feature}_future_change_h" for feature in forecast_features]
+            direct_feature_cols = feature_cols + horizon_feature_cols + future_feature_cols
+            direct_rows = []
+            horizon_bounds: dict[int, tuple[float, float]] = {}
+            for ahead in range(1, max_train_horizon + 1):
+                if len(full_forecast_train) <= ahead:
+                    continue
+                horizon_train = full_forecast_train.iloc[:-ahead].copy()
+                future_target = full_forecast_train[target].shift(-ahead).iloc[:-ahead]
+                horizon_train["__cumulative_change__"] = future_target.to_numpy() - horizon_train[target].to_numpy()
+                horizon_train["__horizon__"] = ahead
+                horizon_train["__horizon_sqrt__"] = np.sqrt(ahead)
+                horizon_train["__horizon_sq__"] = ahead * ahead
+                for feature in forecast_features:
+                    horizon_train[f"{feature}_future_change_h"] = (
+                        full_forecast_train[feature].shift(-ahead).iloc[:-ahead].to_numpy()
+                        - horizon_train[feature].to_numpy()
+                    )
+                horizon_train = horizon_train.dropna(subset=direct_feature_cols + ["__cumulative_change__"])
+                if not horizon_train.empty:
+                    historical_horizon_changes = horizon_train["__cumulative_change__"]
+                    floor = float(historical_horizon_changes.quantile(0.01))
+                    ceiling = float(historical_horizon_changes.quantile(0.99))
+                    if (historical_horizon_changes >= 0).all():
+                        floor = 0.0
+                    horizon_bounds[ahead] = (floor, ceiling)
+                    direct_rows.append(horizon_train)
+
+            if not direct_rows:
+                st.warning("Not enough historical horizon examples to train a direct forecast.")
+                st.stop()
+
+            forecast_train = pd.concat(direct_rows, ignore_index=True)
+            forecast_weights = time_regime_sample_weights(forecast_train[date_col]) / np.sqrt(forecast_train["__horizon__"])
             pipeline = Pipeline(
                 [
                     ("imputer", SimpleImputer(strategy="median")),
@@ -6716,11 +7185,27 @@ with tabs[9]:
                     ("model", make_model(model_choice, "Regression")),
                 ]
             )
-            pipeline.fit(forecast_train[feature_cols], forecast_train["__target_change__"])
+            weights_used = fit_pipeline_with_optional_weights(
+                pipeline,
+                forecast_train[direct_feature_cols],
+                forecast_train["__cumulative_change__"],
+                forecast_weights,
+            )
+            weight_status = (
+                "The selected model accepted these training weights."
+                if weights_used
+                else "The selected model does not support training weights, so it was fit normally."
+            )
             st.info(
-                f"Forecast model refit on `{len(forecast_train):,}` complete historical rows and predicts monthly change before projecting future values.",
+                f"Forecast model refit on `{len(forecast_train):,}` direct horizon examples and predicts cumulative future change. "
+                "Post-COVID rows get higher weight, and the latest 36 months get the highest weight. "
+                f"{weight_status} `{len(forecast_event_features)}` date-only event/regime features are included.",
                 icon=":material/database:",
             )
+            if model_choice in {"RandomForest", "ExtraTrees", "GradientBoosting", "HistGradientBoosting", "DecisionTree"}:
+                st.caption(
+                    "Tree-based forecasts are displayed as step-like monthly predictions because these models do not create a true linear trend between months."
+                )
 
             last_date = base[date_col].dropna().max()
             future_dates = pd.date_range(last_date + pd.offsets.MonthBegin(1), periods=horizon, freq="MS")
@@ -6729,21 +7214,60 @@ with tabs[9]:
             )
             working = base.copy()
             predictions = []
+            forecast_changes = []
+            future_feature_rows = []
+            future_rows = []
             for next_date in future_dates:
                 row = {date_col: next_date, target: np.nan}
                 for feature in exog:
-                    row[feature] = working[feature].iloc[-1] if len(working) else np.nan
+                    row[feature] = project_future_feature_value(
+                        base[feature],
+                        working[feature],
+                        exog_future_mode,
+                    )
                 working = pd.concat([working, pd.DataFrame([row])], ignore_index=True)
-                next_supervised = build_supervised_with_lags(working, date_col, target, exog)
-                next_features = next_supervised.iloc[[-1]][feature_cols]
-                predicted_change = float(pipeline.predict(next_features)[0])
-                predicted_change = float(np.clip(predicted_change, change_floor, change_ceiling))
-                previous_value = float(working[target].dropna().iloc[-1])
-                prediction = previous_value + predicted_change
-                working.loc[working.index[-1], target] = prediction
-                predictions.append(prediction)
+                future_row_with_events = add_market_event_features(pd.DataFrame([row]), date_col)[0].iloc[0]
+                future_rows.append({feature: future_row_with_events.get(feature, np.nan) for feature in forecast_features})
 
-            forecast_df = pd.DataFrame({date_col: future_dates, "forecast": predictions})
+            origin_features = full_forecast_train.iloc[[-1]][feature_cols].copy()
+            origin_target = float(base[target].dropna().iloc[-1])
+            origin_feature_values = {
+                feature: float(base_with_events[feature].dropna().iloc[-1])
+                for feature in forecast_features
+                if base_with_events[feature].notna().any()
+            }
+            previous_prediction = origin_target
+            for idx, next_date in enumerate(future_dates, start=1):
+                training_horizon = min(idx, max_train_horizon)
+                next_features = origin_features.copy()
+                next_features["__horizon__"] = idx
+                next_features["__horizon_sqrt__"] = np.sqrt(idx)
+                next_features["__horizon_sq__"] = idx * idx
+                current_future_features = future_rows[idx - 1] if future_rows else {}
+                for feature in forecast_features:
+                    next_features[f"{feature}_future_change_h"] = (
+                        current_future_features.get(feature, np.nan) - origin_feature_values.get(feature, np.nan)
+                    )
+                cumulative_change = float(pipeline.predict(next_features[direct_feature_cols])[0])
+                floor, ceiling = horizon_bounds.get(training_horizon, (None, None))
+                if floor is not None and ceiling is not None:
+                    scale = idx / training_horizon if training_horizon else 1.0
+                    cumulative_change = float(np.clip(cumulative_change, floor * scale, ceiling * scale))
+                prediction = origin_target + cumulative_change
+                predictions.append(prediction)
+                forecast_changes.append(prediction - previous_prediction)
+                previous_prediction = prediction
+                future_feature_rows.append(current_future_features)
+
+            forecast_df = pd.DataFrame(
+                {
+                    date_col: future_dates,
+                    "forecast": predictions,
+                    "monthly_change": forecast_changes,
+                }
+            )
+            if future_feature_rows:
+                forecast_df = pd.concat([forecast_df, pd.DataFrame(future_feature_rows)], axis=1)
             hist = base[[date_col, target]].dropna()
             forecast_plot_df = pd.concat(
                 [
@@ -6763,9 +7287,15 @@ with tabs[9]:
                 y=forecast_plot_df["forecast"],
                 mode="lines+markers",
                 name="Forecast",
+                line_shape="hv" if model_choice in {"RandomForest", "ExtraTrees", "GradientBoosting", "HistGradientBoosting", "DecisionTree"} else "linear",
             )
             st.plotly_chart(fig, width="stretch")
-            st.dataframe(forecast_df, width="stretch")
+            compact_forecast_df = forecast_df[[date_col, "forecast", "monthly_change"]].copy()
+            st.dataframe(compact_forecast_df, width="stretch", hide_index=True)
+            detail_cols = [col for col in forecast_df.columns if col not in compact_forecast_df.columns]
+            if detail_cols:
+                with st.expander("Projected feature assumptions used by the forecast"):
+                    st.dataframe(forecast_df[[date_col] + detail_cols], width="stretch", hide_index=True)
             st.download_button(
                 "Download forecast CSV",
                 data=forecast_df.to_csv(index=False).encode("utf-8"),
@@ -7257,9 +7787,9 @@ with tabs[13]:
             olap_df["OLAP Year"] = olap_df[date_col].dt.year.astype("Int64").astype(str)
             olap_df["OLAP Quarter"] = "Q" + olap_df[date_col].dt.quarter.astype("Int64").astype(str)
         cat_cols = olap_df.select_dtypes(include=["object", "category"]).columns.tolist()
-        if "administration" in df.columns and "administration" not in cat_cols:
-            cat_cols.append("administration")
-        default_index = ["administration"] if "administration" in cat_cols else cat_cols[:1]
+        if "time_group" in df.columns and "time_group" not in cat_cols:
+            cat_cols.append("time_group")
+        default_index = ["time_group"] if "time_group" in cat_cols else cat_cols[:1]
         index = st.multiselect("Rows", cat_cols, default=default_index, key="olap_index")
         columns = st.multiselect("Columns", cat_cols, default=[], key="olap_columns")
         values = st.multiselect("Values", num_cols, default=num_cols[:1], key="olap_values")
@@ -7331,7 +7861,7 @@ with tabs[13]:
         cube_dims = cat_cols.copy()
         if len(cube_dims) >= 3 and num_cols:
             default_cube_dims = []
-            for candidate in ["administration", "OLAP Year", "OLAP Quarter"]:
+            for candidate in ["time_group", "OLAP Year", "OLAP Quarter"]:
                 if candidate in cube_dims:
                     default_cube_dims.append(candidate)
             for candidate in cube_dims:
@@ -7654,7 +8184,19 @@ with tabs[16]:
         else:
             sim_model = st.selectbox(
                 "Scenario model",
-                ["Ridge", "RandomForest", "LinearRegression", "GradientBoosting", "DecisionTree", "KNN", "NeuralNetwork"],
+                [
+                    "Ridge",
+                    "ElasticNet",
+                    "BayesianRidge",
+                    "RandomForest",
+                    "ExtraTrees",
+                    "LinearRegression",
+                    "GradientBoosting",
+                    "HistGradientBoosting",
+                    "DecisionTree",
+                    "KNNRegressor",
+                    "NeuralNetwork",
+                ],
                 index=0,
                 key="sim_model",
             )
@@ -8130,6 +8672,7 @@ with tabs[23]:
                         fit_scaler,
                         fit_models,
                         custom_hyperparameters,
+                        date_col,
                     )
                 except Exception as err:
                     st.error(f"Could not run fit diagnostics: {err}")
