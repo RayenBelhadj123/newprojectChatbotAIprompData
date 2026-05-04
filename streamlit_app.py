@@ -6745,10 +6745,22 @@ with tabs[9]:
 
             forecast_df = pd.DataFrame({date_col: future_dates, "forecast": predictions})
             hist = base[[date_col, target]].dropna()
+            forecast_plot_df = pd.concat(
+                [
+                    pd.DataFrame(
+                        {
+                            date_col: [hist[date_col].iloc[-1]],
+                            "forecast": [hist[target].iloc[-1]],
+                        }
+                    ),
+                    forecast_df,
+                ],
+                ignore_index=True,
+            )
             fig = px.line(hist, x=date_col, y=target, title="History + Forecast")
             fig.add_scatter(
-                x=forecast_df[date_col],
-                y=forecast_df["forecast"],
+                x=forecast_plot_df[date_col],
+                y=forecast_plot_df["forecast"],
                 mode="lines+markers",
                 name="Forecast",
             )
