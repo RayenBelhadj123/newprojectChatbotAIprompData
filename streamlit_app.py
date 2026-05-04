@@ -1,12 +1,10 @@
 """Streamlit dashboard for a reusable data intelligence platform.
 
-The application loads any tabular CSV, cleans it, and turns it into an
-end-to-end analytics product: exploratory analysis, supervised and unsupervised
-machine learning, forecasting, OLAP segmentation, reporting, and
-production-readiness checks. The bundled housing CSV now works as a demo
-dataset rather than the only supported domain. Helper functions are kept in this
-file because the Streamlit app is currently the project entrypoint; reusable
-code can later be moved into package modules as the project grows.
+The application follows one focused workflow: upload any tabular CSV, clean it,
+train a prediction model, score data, and export a report. Extra exploratory,
+academic, and governance pages still exist behind an advanced toggle, while the
+default product experience stays intentionally small. The bundled housing CSV
+now works as a demo dataset rather than the only supported domain.
 """
 
 import os
@@ -94,8 +92,8 @@ USE_CASE_TEMPLATES: dict[str, dict[str, object]] = {
         "target_keywords": ["target", "label", "outcome", "score", "value", "index"],
         "preferred_task": "Auto",
         "feature_strategy": "Use clean numeric columns with low missingness and avoid identifiers or target-derived fields.",
-        "report_language": "Explain the selected target with data quality, model evidence, segmentation, and governance checks.",
-        "recommended_pages": ["Project Manager", "Smart Auto-Setup", "Overview", "Evaluation", "Prediction Page", "Report Generator"],
+        "report_language": "Explain the selected target with cleaning choices, prediction output, and a final exported report.",
+        "recommended_pages": ["Data Cleaning Studio", "Data Quality", "Overview", "Prediction Page", "Report Generator"],
         "caution": "Match the target and features to the real business or research question before interpreting results.",
     },
     "Sales Analysis": {
@@ -104,8 +102,8 @@ USE_CASE_TEMPLATES: dict[str, dict[str, object]] = {
         "target_keywords": ["sales", "revenue", "profit", "amount", "order_value", "quantity", "margin"],
         "preferred_task": "Regression",
         "feature_strategy": "Prefer customer, product, channel, time, quantity, price, discount, and cost indicators.",
-        "report_language": "Frame results around revenue drivers, profitable segments, forecasts, and commercial recommendations.",
-        "recommended_pages": ["Overview", "OLAP & Export", "Evaluation", "Forecast", "Prediction Page", "Business Impact", "Report Generator"],
+        "report_language": "Frame results around revenue prediction, important inputs, and a downloadable business report.",
+        "recommended_pages": ["Data Cleaning Studio", "Overview", "Prediction Page", "Report Generator"],
         "caution": "Predicted revenue is not causal proof; validate with business context and campaign or pricing history.",
     },
     "Customer Churn": {
@@ -114,8 +112,8 @@ USE_CASE_TEMPLATES: dict[str, dict[str, object]] = {
         "target_keywords": ["churn", "cancelled", "canceled", "retained", "active", "left", "subscription", "renewed"],
         "preferred_task": "Classification",
         "feature_strategy": "Prefer tenure, usage, support, billing, plan, satisfaction, engagement, and recent activity indicators.",
-        "report_language": "Frame results around churn risk, retention actions, high-risk segments, and model confidence.",
-        "recommended_pages": ["Data Cleaning Studio", "Evaluation", "Prediction Page", "Model Save / Load", "Business Impact", "Report Generator"],
+        "report_language": "Frame results around churn-risk prediction, retention action, and model confidence.",
+        "recommended_pages": ["Data Cleaning Studio", "Data Quality", "Prediction Page", "Report Generator"],
         "caution": "Treat churn predictions as decision support; avoid unfair targeting without bias and policy review.",
     },
     "Student Performance": {
@@ -124,8 +122,8 @@ USE_CASE_TEMPLATES: dict[str, dict[str, object]] = {
         "target_keywords": ["score", "grade", "exam", "gpa", "pass", "result", "performance", "marks"],
         "preferred_task": "Auto",
         "feature_strategy": "Prefer attendance, study time, prior grades, engagement, assignments, and support indicators.",
-        "report_language": "Frame results around performance drivers, student-support signals, and responsible intervention planning.",
-        "recommended_pages": ["Data Quality", "Overview", "Evaluation", "Prediction Page", "Business Impact", "Report Generator"],
+        "report_language": "Frame results around performance prediction and responsible support planning.",
+        "recommended_pages": ["Data Cleaning Studio", "Data Quality", "Prediction Page", "Report Generator"],
         "caution": "Educational predictions should support learners, not label or penalize them automatically.",
     },
     "Finance / Risk": {
@@ -134,8 +132,8 @@ USE_CASE_TEMPLATES: dict[str, dict[str, object]] = {
         "target_keywords": ["risk", "default", "return", "loss", "price", "fraud", "credit", "score", "volatility"],
         "preferred_task": "Auto",
         "feature_strategy": "Prefer exposure, transaction, balance, income, rate, history, volatility, and behavior indicators.",
-        "report_language": "Frame results around risk signals, model stability, scenario stress, and governance requirements.",
-        "recommended_pages": ["Data Cleaning Studio", "Evaluation", "Scenario Simulator", "Model Save / Load", "Production Readiness", "Report Generator"],
+        "report_language": "Frame results around risk prediction, input quality, and governance caution.",
+        "recommended_pages": ["Data Cleaning Studio", "Data Quality", "Prediction Page", "Report Generator"],
         "caution": "Finance outputs need strict validation, monitoring, and fairness/compliance review before real use.",
     },
     "Health Dataset": {
@@ -144,8 +142,8 @@ USE_CASE_TEMPLATES: dict[str, dict[str, object]] = {
         "target_keywords": ["diagnosis", "outcome", "risk", "cost", "readmission", "disease", "treatment", "survival"],
         "preferred_task": "Auto",
         "feature_strategy": "Prefer clinically relevant, consented, documented variables and review missingness very carefully.",
-        "report_language": "Frame results as educational data analysis with quality limits, uncertainty, and responsible-use warnings.",
-        "recommended_pages": ["Data Quality", "Evaluation", "Prediction Page", "Production Readiness", "Business Impact", "Report Generator"],
+        "report_language": "Frame results as educational-only prediction with quality limits and responsible-use warnings.",
+        "recommended_pages": ["Data Cleaning Studio", "Data Quality", "Prediction Page", "Report Generator"],
         "caution": "Educational only. Do not use this app for medical diagnosis or treatment decisions.",
     },
     "Housing Demo": {
@@ -154,8 +152,8 @@ USE_CASE_TEMPLATES: dict[str, dict[str, object]] = {
         "target_keywords": ["home_price_index", "home price", "price", "hpi", "mortgage", "housing", "inventory"],
         "preferred_task": "Regression",
         "feature_strategy": "Prefer macro, mortgage, inventory, affordability, income, labor, and time-based indicators.",
-        "report_language": "Frame results around housing price drivers, market regimes, forecasts, and external housing theory.",
-        "recommended_pages": ["Overview", "Evaluation", "OLAP & Export", "Forecast", "Business Impact", "Report Generator"],
+        "report_language": "Frame results around cleaned housing data, price prediction, and final report export.",
+        "recommended_pages": ["Data Cleaning Studio", "Overview", "Prediction Page", "Report Generator"],
         "caution": "Housing forecasts are educational and should not be treated as financial advice.",
     },
 }
@@ -165,38 +163,48 @@ TEMPLATE_CATEGORY_ORDER = ["General", "Business", "Education", "Regulated", "Dem
 APP_MODES: dict[str, dict[str, object]] = {
     "Beginner Mode": {
         "description": "More guidance, recommended clicks, and plain-language interpretation.",
-        "focus": ["Project Manager", "Smart Auto-Setup", "Data Cleaning Studio", "Overview", "Report Generator"],
+        "focus": ["Data Cleaning Studio", "Data Quality", "Prediction Page", "Report Generator"],
         "tone": "Explain what to click next and why each result matters.",
     },
     "Data Scientist Mode": {
         "description": "Modeling, diagnostics, feature review, saving/loading, and validation details.",
-        "focus": ["Evaluation", "Prediction Page", "Model Save / Load", "Production Readiness", "Report Generator"],
+        "focus": ["Data Quality", "Prediction Page", "Report Generator"],
         "tone": "Prioritize metrics, leakage checks, diagnostics, reproducibility, and model governance.",
     },
     "Business Manager Mode": {
         "description": "Executive story, segments, predictions, impact, and downloadable reports.",
-        "focus": ["Executive Summary", "Business Impact", "OLAP & Export", "Scenario Simulator", "Report Generator"],
+        "focus": ["Overview", "Prediction Page", "Report Generator"],
         "tone": "Translate technical evidence into decisions, risks, and recommendations.",
     },
     "Presentation Mode": {
         "description": "Short demo flow for presenting the platform clearly.",
-        "focus": ["Start Here", "Executive Summary", "Overview", "Evaluation", "Prediction Page", "Report Generator"],
+        "focus": ["Start Here", "Data Quality", "Prediction Page", "Report Generator"],
         "tone": "Use concise speaking points and avoid opening too many tabs.",
     },
 }
 
 NONESSENTIAL_PAGES = {
     "Compare",
+    "ML Lab",
+    "Evaluation",
     "Unsupervised Lab",
     "Reinforcement Lab",
+    "Forecast",
     "Conclusion",
     "Domain Review",
     "Code Lab",
+    "OLAP & Export",
+    "Executive Summary",
+    "Data Dictionary",
+    "Scenario Simulator",
+    "Production Readiness",
     "Experiment Tracker",
     "Model Registry",
     "Data Pipeline",
     "Big Data Readiness",
+    "Business Impact",
     "Fit Diagnostics",
+    "Model Save / Load",
 }
 
 
@@ -218,8 +226,7 @@ def app_profile(df: pd.DataFrame, source_name: str) -> dict[str, str | bool]:
         "domain": domain,
         "is_housing": housing_mode,
         "description": (
-            "Upload any CSV, choose a target, explore data quality, train models, forecast, "
-            "build OLAP views, and prepare governance-ready outputs."
+            "Upload a CSV, clean it, train a model, make predictions, and export a report."
         ),
     }
 
@@ -3327,7 +3334,7 @@ Generated: {generated_at}
 {markdown_table(dictionary, max_rows=20)}
 
 ## Recommendation
-Use this report as a project handoff. Before making real decisions, review Data Quality, Evaluation, Prediction Page outputs, and Production Readiness together.
+Use this report as a project handoff. The core workflow is simple: upload a CSV, clean it, train a model, make predictions, and export this report.
 """
 
 
@@ -4421,7 +4428,7 @@ with st.sidebar:
         """,
         unsafe_allow_html=True,
     )
-    st.caption("Upload a dataset, choose a target, model it, segment it, and prepare governance-ready outputs.")
+    st.caption("Upload a CSV, clean it, train a model, make predictions, and export a report.")
     st.divider()
 
     uploaded = st.file_uploader("Upload any CSV dataset", type=["csv"])
@@ -4443,9 +4450,9 @@ with st.sidebar:
         help="Limits chart rows and caches expensive dataset preparation for smoother reruns.",
     )
     show_advanced_pages = st.toggle(
-        "Show advanced / academic pages",
+        "Show extra pages",
         value=False,
-        help="Keeps the main app focused. Turn on to show experimental, academic, and extra governance pages.",
+        help="Keeps the main app focused. Turn on to show charts, labs, governance, and academic/demo extras.",
     )
     st.session_state.show_advanced_pages = show_advanced_pages
     max_chart_rows = st.slider(
@@ -4503,19 +4510,30 @@ if not show_advanced_pages:
     st.markdown(
         """
         <style>
-            /* Hide lower-priority pages from the tab bar in the default focused workflow.
-               The page code remains available when the sidebar advanced-pages toggle is enabled. */
+            /* Default concept:
+               Upload a CSV -> clean it -> train/predict -> export a report.
+               Extra pages are still available from the sidebar toggle. */
             .stTabs [data-baseweb="tab-list"] [data-baseweb="tab"]:nth-child(5),
+            .stTabs [data-baseweb="tab-list"] [data-baseweb="tab"]:nth-child(6),
+            .stTabs [data-baseweb="tab-list"] [data-baseweb="tab"]:nth-child(7),
             .stTabs [data-baseweb="tab-list"] [data-baseweb="tab"]:nth-child(8),
             .stTabs [data-baseweb="tab-list"] [data-baseweb="tab"]:nth-child(9),
+            .stTabs [data-baseweb="tab-list"] [data-baseweb="tab"]:nth-child(10),
             .stTabs [data-baseweb="tab-list"] [data-baseweb="tab"]:nth-child(11),
             .stTabs [data-baseweb="tab-list"] [data-baseweb="tab"]:nth-child(12),
             .stTabs [data-baseweb="tab-list"] [data-baseweb="tab"]:nth-child(13),
+            .stTabs [data-baseweb="tab-list"] [data-baseweb="tab"]:nth-child(14),
+            .stTabs [data-baseweb="tab-list"] [data-baseweb="tab"]:nth-child(15),
+            .stTabs [data-baseweb="tab-list"] [data-baseweb="tab"]:nth-child(16),
+            .stTabs [data-baseweb="tab-list"] [data-baseweb="tab"]:nth-child(17),
+            .stTabs [data-baseweb="tab-list"] [data-baseweb="tab"]:nth-child(18),
             .stTabs [data-baseweb="tab-list"] [data-baseweb="tab"]:nth-child(19),
             .stTabs [data-baseweb="tab-list"] [data-baseweb="tab"]:nth-child(20),
             .stTabs [data-baseweb="tab-list"] [data-baseweb="tab"]:nth-child(21),
             .stTabs [data-baseweb="tab-list"] [data-baseweb="tab"]:nth-child(22),
-            .stTabs [data-baseweb="tab-list"] [data-baseweb="tab"]:nth-child(24) {
+            .stTabs [data-baseweb="tab-list"] [data-baseweb="tab"]:nth-child(23),
+            .stTabs [data-baseweb="tab-list"] [data-baseweb="tab"]:nth-child(24),
+            .stTabs [data-baseweb="tab-list"] [data-baseweb="tab"]:nth-child(27) {
                 display: none;
             }
         </style>
@@ -4887,28 +4905,24 @@ st.markdown(
     """
     <div class="workflow-strip">
         <div class="workflow-step">
-            <div class="step-kicker">01 Foundation</div>
-            <div class="step-title">Data Quality + Dictionary</div>
+            <div class="step-kicker">01 Upload</div>
+            <div class="step-title">Choose CSV + Target</div>
         </div>
         <div class="workflow-step">
-            <div class="step-kicker">02 Discovery</div>
-            <div class="step-title">Overview + Exploration</div>
+            <div class="step-kicker">02 Clean</div>
+            <div class="step-title">Repair Missing + Outliers</div>
         </div>
         <div class="workflow-step">
-            <div class="step-kicker">03 Modeling</div>
-            <div class="step-title">ML + Evaluation</div>
+            <div class="step-kicker">03 Train</div>
+            <div class="step-title">Fit Prediction Model</div>
         </div>
         <div class="workflow-step">
-            <div class="step-kicker">04 Segments</div>
-            <div class="step-title">OLAP + Unsupervised</div>
+            <div class="step-kicker">04 Predict</div>
+            <div class="step-title">Single + Batch Score</div>
         </div>
         <div class="workflow-step">
-            <div class="step-kicker">05 Decisions</div>
-            <div class="step-title">Forecast + Simulator</div>
-        </div>
-        <div class="workflow-step">
-            <div class="step-kicker">06 Governance</div>
-            <div class="step-title">Report + Readiness</div>
+            <div class="step-kicker">05 Export</div>
+            <div class="step-title">Report + CSV Downloads</div>
         </div>
     </div>
     """,
@@ -5201,13 +5215,16 @@ with st.expander("Data Cleaning Studio", expanded=False):
 
 def onboarding_content() -> None:
     """Render the start-page guide for first-time users and project reviewers."""
-    st.markdown("Welcome to **DataIQ Platform**. Follow this path for your first dataset:")
-    guide_pages = selected_mode_profile.get("focus", selected_template["recommended_pages"])
-    guide_text = "\n".join(
-        f"{idx + 1}. **{page}**" for idx, page in enumerate(guide_pages[:6])
+    st.markdown("Welcome to **DataIQ Platform**.")
+    st.markdown(
+        """
+        1. **Upload** a CSV from the sidebar.
+        2. **Clean** it with Data Cleaning Studio.
+        3. **Train and predict** in Prediction Page.
+        4. **Export** the final report in Report Generator.
+        """
     )
-    st.markdown(guide_text)
-    st.info("Use sidebar Search for words like `accuracy`, `OLAP`, `forecast`, or `drift`.", icon=":material/search:")
+    st.info("This focused version keeps extra charts and academic pages hidden unless you enable `Show extra pages`.", icon=":material/filter_alt:")
 
 
 with st.sidebar:
@@ -5301,12 +5318,11 @@ with tabs[0]:
         st.markdown("#### Recommended App Flow")
         flow = pd.DataFrame(
             [
-                {
-                    "Step": idx + 1,
-                    "Page": page,
-                    "What to say": str(selected_mode_profile["tone"]),
-                }
-                for idx, page in enumerate(selected_mode_profile.get("focus", selected_template["recommended_pages"]))
+                {"Step": 1, "Action": "Upload", "Where": "Sidebar", "What to do": "Upload any CSV or use the bundled demo file."},
+                {"Step": 2, "Action": "Clean", "Where": "Data Cleaning Studio", "What to do": "Repair missing values and outliers, then review Data Quality."},
+                {"Step": 3, "Action": "Train", "Where": "Prediction Page", "What to do": "Choose target/features/model and fit the prediction model."},
+                {"Step": 4, "Action": "Predict", "Where": "Prediction Page", "What to do": "Enter values for one prediction or batch-score the dataset."},
+                {"Step": 5, "Action": "Export", "Where": "Report Generator", "What to do": "Download the final Markdown or HTML report."},
             ]
         )
         st.dataframe(flow, width="stretch", hide_index=True)
@@ -5314,10 +5330,13 @@ with tabs[0]:
     with start_cols[1]:
         st.markdown("#### Two-Minute Demo Script")
         st.markdown(
-            "\n".join(
-                f"{idx + 1}. Open **{page}** and {str(selected_mode_profile['tone']).lower()}"
-                for idx, page in enumerate(selected_template["recommended_pages"][:6])
-            )
+            """
+            1. I upload a CSV and choose the target.
+            2. I clean missing values and outliers.
+            3. I train a prediction model.
+            4. I make one prediction and batch predictions.
+            5. I export a report for submission or handoff.
+            """
         )
         st.info(
             "Presentation tip: do not open every tab in a demo. Use the recommended flow, then mention the other tabs as supporting tools.",
@@ -5327,11 +5346,11 @@ with tabs[0]:
     st.markdown("#### Final Click-Through Checklist")
     checklist = pd.DataFrame(
         [
-            {"Check": "Overview loads without errors", "Status": "Do before submission"},
-            {"Check": "Evaluation can run model comparison", "Status": "Do before submission"},
-            {"Check": "OLAP pivot and 3D cube display clearly", "Status": "Do before submission"},
-            {"Check": "Executive report downloads", "Status": "Do before submission"},
-            {"Check": "Production Readiness shows validation and drift", "Status": "Do before submission"},
+            {"Check": "CSV uploads or bundled demo loads", "Status": "Do before submission"},
+            {"Check": "Data Cleaning Studio applies selected repairs", "Status": "Do before submission"},
+            {"Check": "Data Quality shows before/after cleaning audit", "Status": "Do before submission"},
+            {"Check": "Prediction Page trains and scores data", "Status": "Do before submission"},
+            {"Check": "Report Generator downloads Markdown or HTML", "Status": "Do before submission"},
             {"Check": "No red Streamlit errors appear", "Status": "Do before submission"},
         ]
     )
@@ -8573,7 +8592,7 @@ with tabs[25]:
         )
 
     st.info(
-        "Tip: run Evaluation and Prediction Page before generating the final report so the model evidence section is stronger.",
+        "Tip: use Data Cleaning Studio and Prediction Page before generating the final report.",
         icon=":material/article:",
     )
 
